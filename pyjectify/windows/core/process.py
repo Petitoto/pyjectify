@@ -1,4 +1,5 @@
 from os.path import isabs
+from io import BytesIO
 
 from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
@@ -118,19 +119,16 @@ class ProcessHandle:
         return addr.value
     
     
-    def _virtual_free(self, addr):
-        flags = MEM_RELEASE
-        if not kernel32.VirtualFree(addr, 0, flags): raise WinAPIError('VirtualFree - %s' % (kernel32.GetLastError()))
+    def _virtual_free(self, addr, size=0, flags=MEM_RELEASE):
+        if not kernel32.VirtualFree(addr, size, flags): raise WinAPIError('VirtualFree - %s' % (kernel32.GetLastError()))
     
     
-    def _virtual_free_ex(self, addr):
-        flags = MEM_RELEASE
-        if not kernel32.VirtualFreeEx(self.handle, addr, 0, flags): raise WinAPIError('VirtualFreeEx - %s' % (kernel32.GetLastError()))
+    def _virtual_free_ex(self, addr, size=0, flags=MEM_RELEASE):
+        if not kernel32.VirtualFreeEx(self.handle, addr, size, flags): raise WinAPIError('VirtualFreeEx - %s' % (kernel32.GetLastError()))
     
     
-    def _nt_free_virtual_memory(self, addr):
-        flags = MEM_RELEASE
-        status = self.ntdll.NtFreeVirtualMemory(self.handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T()), flags)
+    def _nt_free_virtual_memory(self, addr, size=0, flags=MEM_RELEASE):
+        status = self.ntdll.NtFreeVirtualMemory(self.handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T(size)), flags)
         if status: raise WinAPIError('NtFreeVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
     
     
@@ -225,11 +223,19 @@ class ProcessHandle:
     
     
     def module_from_hmodule(self, hmodule):
-        moduleinfo = MODULEINFO()
-        if not psapi.GetModuleInformation(self.handle, hmodule, moduleinfo, ctypes.sizeof(MODULEINFO)): raise WinAPIError('GetModuleInformation - %s' % (kernel32.GetLastError()))
+        sysinfo = SYSTEM_INFO()
+        kernel32.GetNativeSystemInfo(ctypes.byref(sysinfo))
+        headers = PE(self.read(hmodule, sysinfo.dwPageSize), hmodule)
+
+        raw = BytesIO(b'\x00'*headers.nt_header.OptionalHeader.SizeOfImage)
+        raw.write(headers.raw)
         
-        raw = self.read(hmodule, moduleinfo.SizeOfImage)
-        return PE(raw, base_addr=hmodule, mapped=True)
+        for section in headers.sections_header:
+            raw.seek(section.VirtualAddress)
+            raw.write(self.read(hmodule + section.VirtualAddress, section.Misc.VirtualSize))
+        
+        raw.seek(0)
+        return PE(raw.read(), base_addr=hmodule, mapped=True)
     
     
     def get_module(self, lib):
