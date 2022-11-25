@@ -19,3 +19,6 @@ git clone https://github.com/Petitoto/pyjectify
 
 #### Modules
 - MemScan: scan memory using regex patterns
+
+#### Utils
+- ApiSetSchema: parse Windows API sets
