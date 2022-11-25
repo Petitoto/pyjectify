@@ -19,6 +19,7 @@ git clone https://github.com/Petitoto/pyjectify
 
 #### Modules
 - MemScan: scan memory using regex patterns
+- Inject: load library, from disk (LoadLibrary in a remote thread) or from memory (fully map the DLL into the remote process: no need of a custom DLL with a reflective loader!)
 
 #### Utils
 - ApiSetSchema: parse Windows API sets
