@@ -3,6 +3,7 @@ from pyjectify.windows.core.pe import PE
 
 from pyjectify.windows.modules.memscan import MemScan
 from pyjectify.windows.modules.inject import Inject
+from pyjectify.windows.modules.pythonlib import PythonLib
 
 
 def byName(process):
@@ -15,3 +16,4 @@ class PyJectifyWin:
         
         self.memscan = MemScan(self.process)
         self.inject = Inject(self.process)
+        self.pythonlib = PythonLib(self.process)
