@@ -23,4 +23,5 @@ git clone https://github.com/Petitoto/pyjectify
 - PythonLib: embed python into a remote process
 
 #### Utils
+- Syscall: Parse syscall codes from ntdll.dll (from the loaded library or from the disk), and produce a ntdll-like object which can be used by the Inject module to use direct syscalls
 - ApiSetSchema: parse Windows API sets
