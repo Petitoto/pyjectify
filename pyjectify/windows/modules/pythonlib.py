@@ -1,6 +1,21 @@
 from pyjectify.windows.core.defines import *
 
 
+_py_prepare_hook = '''
+import ctypes, inspect
+func_name = bytes.fromhex('{func}').decode('utf8')
+addr = ctypes.cast({ret_addr}, ctypes.POINTER(ctypes.c_ulonglong))
+if func_name in globals():
+    func = globals()[func_name]
+    args = inspect.getfullargspec(func).annotations.values()
+    if not args:
+        args = [ctypes.c_void_p]
+    if {ofunc}:
+        globals()['o_'+func_name] = ctypes.WINFUNCTYPE(*args)({ofunc})
+    addr.contents.value = ctypes.cast(ctypes.WINFUNCTYPE(*args)(func), ctypes.c_void_p).value
+'''
+
+
 class PythonLib:
     def __init__(self, process, python_mod=None):
         self._process = process
@@ -77,3 +92,14 @@ class PythonLib:
         
         thread = self._process.start_thread(py_finalize_ex)
         self._process.join_thread(thread)
+    
+    
+    def prepare_hook(self, func, ofunc_addr=0):
+        encoded_func = bytes(func, 'utf8').hex()
+        ret_addr = self._process.allocate(8)
+        
+        py_code = _py_prepare_hook.format(func=encoded_func, ofunc=ofunc_addr, ret_addr=ret_addr)
+        self.run_simplestring(py_code)
+        
+        addr = self._process.read(ret_addr, 8)
+        return int.from_bytes(addr, 'little')
