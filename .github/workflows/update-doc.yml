@@ -2,8 +2,6 @@ name: Update and publish documentation
 on:
   workflow_dispatch:
   push:
-    branches:
-      - 'main'
     tags:
       - 'v*'
 
@@ -11,15 +9,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: Build docs
         uses: ammaraskar/sphinx-action@master
         with:
           docs-folder: "docs/"
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-          with:
-            name: github-pages
-            path: docs/_build/html/
+          pre-build-command: python3 -m pip install sphinx-rtd-theme
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs/_build/html/
   
   deploy:
     needs: build

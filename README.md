@@ -4,10 +4,12 @@
 A Python library for memory manipulation, code injection and function hooking.
 
 
-## Install
+## Quick start
 PyJectify is available on [Pypi](https://pypi.org/project/pyjectify/).
 
 Alternatively, you can download releases from GitHub or clone the project.
+
+Documentation is available at https://petitoto.github.io/pyjectify/
 
 
 ## Features

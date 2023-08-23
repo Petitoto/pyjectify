@@ -1,0 +1,18 @@
+[project]
+name = "pyjectify"
+version = "0.1"
+authors = [
+  { name="Petitoto" },
+]
+description = " A Python library for memory manipulation, code injection and function hooking"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Petitoto/pyjectify"
+"Bug Tracker" = "https://github.com/Petitoto/pyjectify/issues"
