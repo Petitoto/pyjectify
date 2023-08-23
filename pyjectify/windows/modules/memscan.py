@@ -1,16 +1,30 @@
 import re
 
 from pyjectify.windows.core.defines import *
+from pyjectify.windows.core.process import ProcessHandle
+
 
 class MemScan:
-    def __init__(self, process):
+    """This class provides methods to find a pattern inside a remote process memory"""
+    
+    addrs: list[int] #: Addresses to scan, matching with the previous search. If empty, scan all addresses.
+    
+    def __init__(self, process: ProcessHandle) -> None:
         self._process = process
         self.addrs = []
     
-    def reset(self):
+    def reset(self) -> None:
+        """Reset found memory addresses"""
         self.addrs = []
     
-    def scan(self, pattern):
+    def scan(self, pattern: bytes) -> list[int]:
+        """Search a pattern in the whole memory of the target process or among the previous found memory addresses
+        
+        Args:
+            pattern: regex pattern
+        Returns:
+            The addresses with bytes matching with the pattern
+        """
         def gen_meminfo():
             if self.addrs:
                 for addr in self.addrs:

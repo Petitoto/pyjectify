@@ -1,20 +1,28 @@
 import ctypes
 from ctypes.wintypes import *
 
+
+# Windows libraries
 kernel32 = ctypes.windll.kernel32
 ntdll = ctypes.windll.ntdll
 psapi = ctypes.windll.psapi
 
+
+# Adding some Windows types
 ULONGLONG = ctypes.c_ulonglong
 SIZE_T = ctypes.c_size_t
 POINTER = ctypes.POINTER
 
+
+# Windows macros
 def LOWORD(dword):
     return dword & 0x0000ffff
 
 def HIWORD(dword):
     return dword >> 16
 
+
+# PE flags
 IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16
 IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b
 IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b
@@ -34,6 +42,8 @@ IMAGE_SCN_MEM_READ = 0x40000000
 IMAGE_SCN_MEM_WRITE = 0x80000000
 DLL_PROCESS_ATTACH = 1
 
+
+# Process flags
 PROCESS_CREATE_PROCESS = 0x80
 PROCESS_CREATE_THREAD = 0x02
 PROCESS_DUP_HANDLE = 0x40
@@ -47,6 +57,8 @@ PROCESS_VM_OPERATION = 0x08
 PROCESS_VM_READ = 0x10
 PROCESS_VM_WRITE = 0x20
 
+
+# Threads flags
 SYNCHRONIZE = 0x100000
 THREAD_DIRECT_IMPERSONATION = 0x0200
 THREAD_GET_CONTEXT = 0x08
@@ -60,6 +72,8 @@ THREAD_SET_THREAD_TOKEN = 0x0080
 THREAD_SUSPEND_RESUME = 0x02
 THREAD_TERMINATE = 0x01
 
+
+# Memory flags
 MEM_COMMIT = 0x1000
 MEM_RESERVE = 0x2000
 MEM_RELEASE = 0x8000
@@ -79,54 +93,13 @@ PAGE_GUARD = 0x100
 PAGE_NOCACHE = 0x200
 PAGE_WRITECOMBINE = 0x400
 
-LIST_MODULES_ALL = 0x03
 
+# Other Windows flags
+LIST_MODULES_ALL = 0x03
 TH32CS_SNAPPROCESS = 0x02
 
-class SYSTEM_INFO(ctypes.Structure):
-    class _U(ctypes.Union):
-        class _S(ctypes.Structure):
-            _fields_ = [
-                ('wProcessorArchitecture', WORD),
-                ('wReserved', WORD),
-            ]
-        _fields_ = [
-            ('dwOemId', DWORD),
-            ('struct', _S),
-        ]
-    _fields_ = [
-        ('union', _U),
-        ('dwPageSize', DWORD),
-        ('lpMinimumApplicationAddress', LPVOID),
-        ('lpMaximumApplicationAddress', LPVOID),
-        ('dwActiveProcessorMask', DWORD),
-        ('dwNumberOfProcessors', DWORD),
-        ('dwProcessorType', DWORD),
-        ('dwAllocationGranularity', DWORD),
-        ('wProcessorLevel', WORD),
-        ('wProcessorRevision', WORD),
-    ]
 
-MemoryBasicInformation = 0
-class MEMORY_BASIC_INFORMATION(ctypes.Structure):
-    _fields_ = [
-        ('BaseAddress', LPVOID),
-        ('AllocationBase', LPVOID),
-        ('AllocationProtect', DWORD),
-        ('PartitionId', WORD),
-        ('RegionSize', SIZE_T),
-        ('State', DWORD),
-        ('Protect', DWORD),
-        ('Type', DWORD)
-    ]
-
-class MODULEINFO(ctypes.Structure):
-    _fields_ = [
-        ('lpBaseOfDll', LPVOID),
-        ('SizeOfImage', DWORD),
-        ('EntryPoint', LPVOID),
-    ]
-
+# PE structs
 def IMAGE_ORDINAL32(Ordinal):
   return (Ordinal & 0xffff)
 
@@ -354,6 +327,8 @@ class BASE_RELOCATION_ENTRY(ctypes.Structure):
         ('Type', UINT, 4),
     ]
 
+
+# Process structs
 class PROCESSENTRY32(ctypes.Structure):
     _fields_ = [
         ('dwSize', DWORD),
@@ -368,6 +343,30 @@ class PROCESSENTRY32(ctypes.Structure):
         ('szExeFile', CHAR * 260),
         ]
 
+
+# Memory & Module structs
+MemoryBasicInformation = 0
+class MEMORY_BASIC_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ('BaseAddress', LPVOID),
+        ('AllocationBase', LPVOID),
+        ('AllocationProtect', DWORD),
+        ('PartitionId', WORD),
+        ('RegionSize', SIZE_T),
+        ('State', DWORD),
+        ('Protect', DWORD),
+        ('Type', DWORD)
+    ]
+
+class MODULEINFO(ctypes.Structure):
+    _fields_ = [
+        ('lpBaseOfDll', LPVOID),
+        ('SizeOfImage', DWORD),
+        ('EntryPoint', LPVOID),
+    ]
+
+
+# ApiSetSchema structs
 class StructApiSetValueEntryRedirectionV2(ctypes.Structure):
     _fields_ = [
         ('NameOffset', ctypes.c_uint32),
@@ -463,6 +462,34 @@ class StructApiSetNamespaceV6(ctypes.Structure):
         ('HashFactor', ctypes.c_uint32),
     ]
 
+
+# Other Windows structs
+class SYSTEM_INFO(ctypes.Structure):
+    class _U(ctypes.Union):
+        class _S(ctypes.Structure):
+            _fields_ = [
+                ('wProcessorArchitecture', WORD),
+                ('wReserved', WORD),
+            ]
+        _fields_ = [
+            ('dwOemId', DWORD),
+            ('struct', _S),
+        ]
+    _fields_ = [
+        ('union', _U),
+        ('dwPageSize', DWORD),
+        ('lpMinimumApplicationAddress', LPVOID),
+        ('lpMaximumApplicationAddress', LPVOID),
+        ('dwActiveProcessorMask', DWORD),
+        ('dwNumberOfProcessors', DWORD),
+        ('dwProcessorType', DWORD),
+        ('dwAllocationGranularity', DWORD),
+        ('wProcessorLevel', WORD),
+        ('wProcessorRevision', WORD),
+    ]
+
+
+# Windows functions restype & argtypes
 kernel32.CloseHandle.restype = BOOL
 kernel32.CloseHandle.argtypes = (HANDLE, )
 kernel32.CreateThread.restype = HANDLE

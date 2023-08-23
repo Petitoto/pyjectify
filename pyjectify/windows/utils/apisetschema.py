@@ -3,8 +3,13 @@ import os
 from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
 
+
 class ApiSetSchema:
-    def __init__(self):
+    """This class provide methods to parse and resolve Windows ApiSet"""
+    
+    entries: dict #: Dict of api name -> api name defined by Windows ApiSet
+    
+    def __init__(self) -> None:
         self._data = None
         self.entries = {}
         
@@ -18,7 +23,8 @@ class ApiSetSchema:
                 self._data = apisetschema.raw[section.PointerToRawData:section.PointerToRawData+section.SizeOfRawData]
                 break
         
-        assert self._data, 'ApiSet section not found'
+        if not self._data:
+            raise InvalidApiSetSchema('ApiSet section not found')
         
         version = self._read_int(0, 1)
         if version == 2:
@@ -28,10 +34,10 @@ class ApiSetSchema:
         elif version == 6:
             self._apiset6()
         else:
-            raise AssertionError('Invalid ApiSetSchema version - %s' % (version))
+            raise InvalidApiSetSchema('Invalid ApiSetSchema version - %s' % (version))
     
     
-    def _apiset2(self):
+    def _apiset2(self) -> None:
         header = self._fill_struct(StructApiSetNamespaceV2, 0)
         
         for i in range(header.Count):
@@ -50,7 +56,7 @@ class ApiSetSchema:
             self.entries[entry_name] = entry_values
     
     
-    def _apiset4(self):
+    def _apiset4(self) -> None:
         header = self._fill_struct(StructApiSetNamespaceV4, 0)
         
         for i in range(header.Count):
@@ -69,7 +75,7 @@ class ApiSetSchema:
             self.entries[entry_name] = entry_values
     
     
-    def _apiset6(self):
+    def _apiset6(self) -> None:
         header = self._fill_struct(StructApiSetNamespaceV6, 0)
         
         for i in range(header.Count):
@@ -86,28 +92,42 @@ class ApiSetSchema:
             self.entries[entry_name] = entry_values
     
     
-    def _fill_struct(self, struct, addr):
+    def _fill_struct(self, struct: ctypes.Structure, addr: int) -> ctypes.Structure:
         length = ctypes.sizeof(struct)
         buf = self._read_raw(addr, length)
         return struct.from_buffer_copy(buf)
     
     
-    def _read_raw(self, addr, length):
+    def _read_raw(self, addr: int, length: int) -> bytes:
         return self._data[addr:addr + length]
     
     
-    def _read_int(self, addr, length):
+    def _read_int(self, addr: int, length: int) -> int:
         return int.from_bytes(self._data[addr:addr + length], byteorder='little')
     
     
-    def _read_str(self, addr, length=1024):
+    def _read_str(self, addr: int, length: int = 1024) -> str:
         data = self._data[addr:addr+length]
         return data[:data.find(b'\x00\x00')].decode().strip('\x00')
     
     
-    def resolve(self, name):
-        cutname = name[:name.rfind("-")]
+    def resolve(self, name: str) -> str:
+        """Resolve a Windows ApiSet
+        
+        Args:
+            name: name of the Windows ApiSet
+        
+        Returns:
+            The resolved name of the Windows ApiSet
+        """
+        cutname = name[:name.rfind('-')]
         if cutname in self.entries:
             return self.entries[cutname][-1]
         else:
             return name
+
+
+
+class InvalidApiSetSchema(Exception):
+    """Exception for ApiSet parsing errors"""
+    pass

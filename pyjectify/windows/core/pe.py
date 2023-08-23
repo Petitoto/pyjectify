@@ -2,8 +2,22 @@ from io import BytesIO
 
 from pyjectify.windows.core.defines import *
 
-class PE:    
-    def __init__(self, raw, base_addr=0, mapped=False):
+
+class PE:
+    """This class represents a PE and provides methods to parse it"""
+    
+    raw: bytes #: Raw bytes of the PE
+    base_addr: int #: Base address of the PE
+    mapped: bool #: Specify if the PE is mapped to memory
+    dos_header: IMAGE_DOS_HEADER #: DOS headers
+    nt_header: IMAGE_NT_HEADERS32 #: NT headers
+    x86: bool #: Specify if the PE is a 32-bit PE
+    sections_header: list[IMAGE_SECTION_HEADER] #: PE sections headers
+    sections: list #: PE sections, list of (VirtualAddress, SizeOfRawData, PageProtection) tuple
+    exports: dict #: PE exports, dict of function_name -> function_address ; addresses are relative to the module base address
+    imports: dict #: PE imports, dict of library_name -> [(function_name, function_address)...]
+    
+    def __init__(self, raw: bytes, base_addr: int = 0, mapped: bool = False) -> None:
         self.raw = raw
         self.base_addr = base_addr
         self.mapped = mapped
@@ -13,10 +27,12 @@ class PE:
         self.imports = {}
         
         self.dos_header = self._fill_struct(IMAGE_DOS_HEADER, 0)
-        if bytes(WORD(self.dos_header.e_magic)) != b'MZ': raise InvalidPEHeader('Invalid MZ signature - %s' % (self.dos_header.e_magic))
+        if bytes(WORD(self.dos_header.e_magic)) != b'MZ':
+            raise InvalidPEHeader('Invalid MZ signature - %s' % (self.dos_header.e_magic))
         
         self.nt_header = self._fill_struct(IMAGE_NT_HEADERS32, self.dos_header.e_lfanew)
-        if bytes(DWORD(self.nt_header.Signature)) != b'PE\x00\x00': raise InvalidPEHeader('Invalid PE signature - %s' % (self.nt_header.Signature))
+        if bytes(DWORD(self.nt_header.Signature)) != b'PE\x00\x00':
+            raise InvalidPEHeader('Invalid PE signature - %s' % (self.nt_header.Signature))
         
         if self.nt_header.OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC:
             self.x86 = True
@@ -57,33 +73,35 @@ class PE:
             elif protectR and protectW and not protectX:
                 protect = PAGE_READWRITE
             
-            self.sections.append([section_header.VirtualAddress, section_header.SizeOfRawData, protect])
+            self.sections.append((section_header.VirtualAddress, section_header.SizeOfRawData, protect))
     
     
-    def _fill_struct(self, struct, addr):
+    def _fill_struct(self, struct: ctypes.Structure, addr: ctypes.Structure) -> ctypes.Structure:
         length = ctypes.sizeof(struct)
         buf = self._read_raw(addr, length)
         return struct.from_buffer_copy(buf)
     
     
-    def _read_raw(self, addr, length):
+    def _read_raw(self, addr: int, length: int) -> bytes:
         return self.raw[addr:addr + length]
     
     
-    def _read_int(self, addr, length):
+    def _read_int(self, addr: int, length: int) -> int:
         return int.from_bytes(self.raw[addr:addr + length], byteorder='little')
     
     
-    def _read_str(self, addr, length=1024):
+    def _read_str(self, addr: int, length: int = 1024) -> str:
         data = self.raw[addr:addr+length]
         return data[:data.find(0)].decode()
     
     
-    def map_to_memory(self):
+    def map_to_memory(self) -> None:
+        """Map PE sections to memory"""
         if self.mapped:
             return
         
-        if not self.sections_header: raise InvalidPEHeader('No sections found')
+        if not self.sections_header:
+            raise InvalidPEHeader('No sections found')
         size = self.nt_header.OptionalHeader.SizeOfImage
         raw = BytesIO(b'\x00'*size)
         
@@ -98,13 +116,14 @@ class PE:
         self.mapped = True
     
     
-    def parse_imports(self):
+    def parse_imports(self) -> None:
+        """Parse PE imports"""
         data_directory = self.nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
         
         offset = 0
         import_dir = self._fill_struct(IMAGE_IMPORT_DESCRIPTOR, data_directory.VirtualAddress)
         
-        while import_dir.Characteristics:            
+        while import_dir.Characteristics:
             dll_name = self._read_str(import_dir.Name)
             self.imports[dll_name] = []
             
@@ -123,16 +142,16 @@ class PE:
                     break
                 
                 if self.x86 and IMAGE_SNAP_BY_ORDINAL32(othunk.u1.Ordinal):
-                    self.imports[dll_name].append([IMAGE_ORDINAL32(othunk.u1.Ordinal), thunk_addr])
+                    self.imports[dll_name].append((IMAGE_ORDINAL32(othunk.u1.Ordinal), thunk_addr))
                     i += 1
                     continue
                 elif not self.x86 and IMAGE_SNAP_BY_ORDINAL64(othunk.u1.Ordinal):
-                    self.imports[dll_name].append([IMAGE_ORDINAL64(othunk.u1.Ordinal), thunk_addr])
+                    self.imports[dll_name].append((IMAGE_ORDINAL64(othunk.u1.Ordinal), thunk_addr))
                     i += 1
                     continue
                 
                 import_by_name = self._fill_struct(IMAGE_IMPORT_BY_NAME, othunk.u1.AddressOfData)
-                self.imports[dll_name].append([import_by_name.Name.decode(), thunk_addr])
+                self.imports[dll_name].append((import_by_name.Name.decode(), thunk_addr))
                 
                 i += 1
             
@@ -140,7 +159,8 @@ class PE:
             import_dir = self._fill_struct(IMAGE_IMPORT_DESCRIPTOR, data_directory.VirtualAddress + offset)
     
     
-    def parse_exports(self):
+    def parse_exports(self) -> None:
+        """Parse PE exports"""
         data_directory = self.nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]
         export_directory = self._fill_struct(IMAGE_EXPORT_DIRECTORY, data_directory.VirtualAddress)
         
@@ -157,7 +177,15 @@ class PE:
                 self.exports[name] = function_addr
     
     
-    def forwarded_export(self, name):
+    def forwarded_export(self, name: str) -> str:
+        """Resolve a forwarded export
+        
+        Args:
+            name: the name of the forwarded export
+        
+        Returns:
+            The name of the resolved forwarded export
+        """
         addr = self.exports[name]
         
         begin_exports = self.nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress
@@ -167,7 +195,12 @@ class PE:
             return self._read_str(addr)
     
     
-    def change_base(self, base_addr):
+    def change_base(self, base_addr: int) -> None:
+        """Change PE base address and perform base relocation
+        
+        Args:
+            base_addr: new base address of the PE
+        """
         delta = base_addr - self.base_addr
         
         if delta:
@@ -224,7 +257,13 @@ class PE:
             self.base_addr = base_addr
     
     
-    def patch_import(self, thunk_addr, address):
+    def patch_import(self, thunk_addr: int, address: int) -> None:
+        """Patch PE imports
+        
+        Args:
+            thunk_addr: address of the thunk data of the import
+            address: new function address for the import
+        """
         raw = BytesIO(self.raw)
         
         if self.x86:
@@ -242,4 +281,5 @@ class PE:
 
 
 class InvalidPEHeader(Exception):
+    """Exception for PE parsing errors"""
     pass
