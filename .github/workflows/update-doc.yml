@@ -7,19 +7,24 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Build docs
-        uses: ammaraskar/sphinx-action@master
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          docs-folder: "docs/"
-          pre-build-command: python3 -m pip install sphinx-rtd-theme
+          python-version: '3.11'
+      - name: Install sphinx
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install sphinx sphinx-rtd-theme
+      - name: Build
+        run: python3 -m sphinx build docs docs/_build
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v1
         with:
-          path: docs/_build/html/
+          path: docs/_build/
   
   deploy:
     needs: build

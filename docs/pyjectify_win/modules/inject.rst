@@ -1,7 +1,7 @@
 :mod:`inject`
 =============
 
-Test
+Classes, exceptions, and methods to inject code in a remote process on Windows.
 
 .. module:: inject
 

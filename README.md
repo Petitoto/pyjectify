@@ -1,4 +1,4 @@
-<img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="pyjectify.png">
+<img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png">
 
 # PyJectify
 A Python library for memory manipulation, code injection and function hooking.
