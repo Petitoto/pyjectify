@@ -100,6 +100,12 @@ class ProcessHandle:
             self.start_thread = self._nt_create_thread_ex
     
     
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        if name == "ntdll":
+            self._init_func()
+    
+    
     def close(self) -> None:
         """Close the handle to the target process"""
         if not kernel32.CloseHandle(self.handle):
