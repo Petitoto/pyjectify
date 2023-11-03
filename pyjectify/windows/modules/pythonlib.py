@@ -141,9 +141,13 @@ class PythonLib:
     
     def finalize(self) -> None:
         """Undo all initializations of the Python interpreter in the target process
-        This method calls Py_FinalizeEx
+        This method calls PyGILState_Ensure + Py_FinalizeEx
         """
+        py_gil_state_ensure = self.python_mod.base_addr + self.python_mod.exports['PyGILState_Ensure']
         py_finalize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_FinalizeEx']
+        
+        gil_ensure_thread = self._process.start_thread(py_gil_state_ensure)
+        self._process.join_thread(gil_ensure_thread)
         
         thread = self._process.start_thread(py_finalize_ex)
         self._process.join_thread(thread)
