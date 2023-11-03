@@ -1,11 +1,11 @@
-<img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png">
+<img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png" href="#">
 
 # PyJectify
 A Python library for memory manipulation, code injection and function hooking.
 
 
 ## Quick start
-PyJectify is available on [Pypi](https://pypi.org/project/pyjectify/).
+PyJectify is available on [PyPI](https://pypi.org/project/pyjectify/).
 
 Alternatively, you can download releases from GitHub or clone the project.
 
@@ -25,7 +25,7 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 - MemScan: scan memory using regex patterns
 - Inject: load library, from disk (remote LoadLibrary) or from memory (fully map the DLL into the remote process)
 - Hook: set up inline hooks in the target process
-- PythonLib: embed python into a remote process
+- PythonLib: embed python into a remote process (Python 3.10 - 3.11 supported)
 
 #### Utils
 - Syscall: Parse syscall codes from ntdll.dll (from the loaded library or from the disk), and produce a ntdll-like object which can be used by the Inject module to use direct syscalls
@@ -33,27 +33,56 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 
 
 ## Example
+
+### Memory manipulation
 ```python
 import pyjectify
 
-# Open notepad.exe process (only the first found if multiple instances of notepad are running)
+# Open notepad process (only the first found if multiple instances of notepad are running)
 notepad = pyjectify.byName('Notepad.exe')[0]
 
-# Search for the secret in notepad memory:
-pattern = rb's;e;c;r;e;t;( ;i;s;)?:; (;.){10}'.replace(b';', b'\x00') # ; -> \x00 just to keep the pattern readable (notepad use wide strings)
+# Search for the secret in notepad's memory
+# We use the pattern "secret( is)?: (.){10}", but encoded in utf-16-le because Notepad uses wchar_t
+words = ['secret', ' is', ': ', '.']
+pattern = b'%b(%b)?%b(%b){10}' % tuple(e.encode('utf-16-le') for e in words)
 addrs = notepad.memscan.scan(pattern)
 for addr in addrs:
     secret = notepad.process.read(addr, 50)
-    print('[+] Found secret:', str(secret.replace(b'\x00', b'')))
-    notepad.process.write(addr, b'*\x00'*25) # let's hide the secret
+    secret = secret.split(b'\x00\x00')[0].replace(b'\x00', b'')
+    print('[+] Found secret:', str(secret))
+    notepad.process.write(addr, b'*\x00'*len(secret)) # let's hide the secret!
 
-# Inject Python DLL, from bytes loaded in memory
-notepad.pythonlib.python_mod = notepad.inject.load_library("python3xx.dll")
+# Reset memscan to perform a new search regardless of the previous scan
+notepad.memscan.reset()
+```
+
+### Python code injection
+```python
+import pyjectify
+
+# Open notepad process
+notepad = pyjectify.byName('Notepad.exe')[0]
+
+# Inject Python DLL
+notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
 notepad.pythonlib.python_mod.parse_exports()
 
 # Run some Python code from notepad
 notepad.pythonlib.initialize()
 notepad.pythonlib.exec('import os; os.system("calc.exe")')
+
+# Undo all initializations
+notepad.pythonlib.finalize()
+```
+
+### Setup an inline hook written in Python
+```python
+import pyjectify
+
+# Open notepad process & inject Python DLL
+notepad = pyjectify.byName('Notepad.exe')[0]
+notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
+notepad.pythonlib.python_mod.parse_exports()
 
 # Let's hook GetClipboardData!
 # Step 1: define our new function
@@ -76,9 +105,26 @@ hook_addr = notepad.pythonlib.prepare_hook('GetClipboardData', trampoline_addr)
 
 # Step 4: inline hook
 notepad.hook.inline(oaddr, hook_addr)
+```
 
-# A final fix (for now)
-# To prevent Python API to clean our Python hook, we need to exit a PyRun_SimpleString abruptly, or keeping it open using a sleep
-# This issue is investigated and should be fixed in the next release
-notepad.pythonlib.exec('ctypes.windll.kernel32.ExitThread(0)')
+### Advanced DLL injection
+```python
+import pyjectify
+
+# Open processes
+proc1 = pyjectify.byName('proc1.exe')[0]
+proc2 = pyjectify.byName('proc2.exe')[0]
+
+# Extract a library from proc1's memory
+module = proc1.process.get_module('module.dll')[0]
+
+# Extract common syscalls from ntdll.dll and wrap them in a ntdll-like object
+syscall = pyjectify.windows.Syscall()
+syscall.get_common(from_disk=True)
+
+# Use direct syscalls to operate on proc2 (memory read / write / protect, thread creation...)
+proc2.process.ntdll = syscall
+
+# Inject the module directly from memory into proc2, without copying PE headers
+proc2.inject.memory_loader(module, copy_headers=False)
 ```

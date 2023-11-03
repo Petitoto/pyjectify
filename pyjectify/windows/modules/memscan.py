@@ -18,7 +18,7 @@ class MemScan:
         self.addrs = []
     
     def scan(self, pattern: bytes) -> list[int]:
-        """Search a pattern in the whole memory of the target process or among the previous found memory addresses
+        """Search a pattern in the whole memory of the target process or among previously found memory addresses
         
         Args:
             pattern: regex pattern
