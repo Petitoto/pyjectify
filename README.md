@@ -32,25 +32,27 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 - ApiSetSchema: parse Windows ApiSet
 
 
-## Example
+## Examples
 
-### Memory manipulation
+### Memory search & basic operations
 ```python
 import pyjectify
 
 # Open notepad process (only the first found if multiple instances of notepad are running)
 notepad = pyjectify.byName('Notepad.exe')[0]
 
-# Search for the secret in notepad's memory
-# We use the pattern "secret( is)?: (.){10}", but encoded in utf-16-le because Notepad uses wchar_t
+# Use the pattern "secret( is)?: (.){10}", but encoded in utf-16-le because Notepad uses wchar_t
 words = ['secret', ' is', ': ', '.']
 pattern = b'%b(%b)?%b(%b){10}' % tuple(e.encode('utf-16-le') for e in words)
+
+# Search for the secret in notepad's memory
 addrs = notepad.memscan.scan(pattern)
+
+# Process found addresses
 for addr in addrs:
-    secret = notepad.process.read(addr, 50)
-    secret = secret.split(b'\x00\x00')[0].replace(b'\x00', b'')
-    print('[+] Found secret:', str(secret))
-    notepad.process.write(addr, b'*\x00'*len(secret)) # let's hide the secret!
+    secret = notepad.process.read(addr, 50).decode('utf-16-le')
+    print('[+] Found secret:', secret)
+    notepad.process.write(addr, ('*'*len(secret)).encode('utf-16-le')) # let's hide the secret!
 
 # Reset memscan to perform a new search regardless of the previous scan
 notepad.memscan.reset()
@@ -118,7 +120,7 @@ proc2 = pyjectify.byName('proc2.exe')[0]
 # Extract a library from proc1's memory
 module = proc1.process.get_module('module.dll')[0]
 
-# Extract common syscalls from ntdll.dll and wrap them in a ntdll-like object
+# Extract common syscalls from ntdll.dll and wrap them into a ntdll-like object
 syscall = pyjectify.windows.Syscall()
 syscall.get_common(from_disk=True)
 
