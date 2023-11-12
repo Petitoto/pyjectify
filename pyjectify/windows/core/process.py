@@ -45,9 +45,6 @@ class ProcessHandle:
     handle: int #: Handle to the target process
     x86: bool #: Specify if the target process runs in 32-bit mode
     wow64: bool #: Specify if the target process is a wow64 process
-    injectorx86: bool #: Specify if PyJectify process runs in 32-bit mode
-    injectorwow64: bool #: Specify if PyJectify process is a wow64 process
-    windowsx86: bool #: Specify if Windows is 32-bit
     
     def __init__(self, pid: int, ntdll: object = None, desired_access: int = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE) -> None:
         self.pid = pid
@@ -63,12 +60,13 @@ class ProcessHandle:
         self.wow64 = BOOL()
         if not kernel32.IsWow64Process(self.handle, ctypes.byref(self.wow64)):
             raise WinAPIError('IsWow64Process - %s' % (kernel32.GetLastError()))
-        self.injectorx86 = ctypes.sizeof(SIZE_T) == 4
-        self.injectorwow64 = BOOL()
-        if not kernel32.IsWow64Process(-1, ctypes.byref(self.injectorwow64)):
+        self.wow64 = self.wow64.value > 0
+        injectorx86 = ctypes.sizeof(SIZE_T) == 4
+        injectorwow64 = BOOL()
+        if not kernel32.IsWow64Process(-1, ctypes.byref(injectorwow64)):
             raise WinAPIError('IsWow64Process - %s' % (kernel32.GetLastError()))
-        self.windowsx86 = self.injectorx86 and not self.injectorwow64
-        self.x86 = self.wow64 or self.windowsx86
+        windowsx86 = injectorx86 and not injectorwow64
+        self.x86 = self.wow64 or windowsx86
         
         self._init_func()
     

@@ -1,5 +1,7 @@
+import ctypes
+
 import pyjectify.windows.core.defines as defines
-from pyjectify.windows.core.process import getpid as _getpid, ProcessHandle as _ProcessHandle
+from pyjectify.windows.core.process import getpid as _getpid, ProcessHandle as _ProcessHandle, WinAPIError as _WinAPIError
 from pyjectify.windows.core.pe import PE
 
 from pyjectify.windows.modules.memscan import MemScan as _MemScan
@@ -11,7 +13,19 @@ from pyjectify.windows.utils.apisetschema import ApiSetSchema
 from pyjectify.windows.utils.syscall import Syscall
 
 
-__all__ = ['PyJectifyWin', 'byName', 'defines', 'PE', 'ApiSetSchema', 'Syscall']
+__all__ = ['PyJectifyWin', 'byName', 'defines', 'PE', 'ApiSetSchema', 'Syscall', 'x86', 'wow64', 'windowsx86']
+
+
+x86: bool #: Specify if PyJectify process runs in 32-bit mode
+wow64: bool #: Specify if PyJectify process is a wow64 process
+windowsx86: bool #: Specify if Windows is 32-bit
+
+x86 = ctypes.sizeof(defines.SIZE_T) == 4
+wow64 = defines.BOOL()
+if not defines.kernel32.IsWow64Process(-1, ctypes.byref(wow64)):
+    raise _WinAPIError('IsWow64Process - %s' % (defines.kernel32.GetLastError()))
+wow64 = wow64.value > 0
+windowsx86 = x86 and not wow64
 
 
 class PyJectifyWin:
