@@ -385,7 +385,7 @@ class ProcessHandle:
             raw.write(self.read(hmodule + section.VirtualAddress, section.Misc.VirtualSize))
         
         raw.seek(0)
-        return PE(raw.read(), base_addr=hmodule, mapped=True)
+        return PE(raw.read(), base_addr=hmodule)
     
     
     def get_module(self, lib: str) -> PE:

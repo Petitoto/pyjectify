@@ -16,7 +16,7 @@ class PE:
     exports: dict #: PE exports, dict of function_name -> function_address ; addresses are relative to the module base address
     imports: dict #: PE imports, dict of library_name -> [(function_name, function_address)...]
     
-    def __init__(self, raw: bytes, base_addr: int = 0, mapped: bool = False, headers_only: bool = False) -> None:
+    def __init__(self, raw: bytes, base_addr: int = 0, headers_only: bool = False) -> None:
         self.raw = raw
         self.base_addr = base_addr
         self.sections_header = []
@@ -74,8 +74,7 @@ class PE:
             self.sections.append((section_header.VirtualAddress, section_header.Misc.VirtualSize, protect))
         
         if not headers_only:
-            if not mapped:
-                self._map_to_memory()
+            self._map_to_memory()
             self._parse_imports()
             self._parse_exports()
     
@@ -99,9 +98,29 @@ class PE:
         return data[:data.find(0)].decode()
     
     
+    def _is_mapped(self) -> None:
+        if self.x86:
+            section_addr = self.dos_header.e_lfanew + ctypes.sizeof(IMAGE_NT_HEADERS32)
+        else:
+            section_addr = self.dos_header.e_lfanew + ctypes.sizeof(IMAGE_NT_HEADERS64)
+        
+        virtual_end = section_addr + len(self.sections_header) * ctypes.sizeof(IMAGE_SECTION_HEADER)
+        for section_header in self.sections_header:
+            raw = self.raw[virtual_end:section_header.VirtualAddress]
+            if raw != b'\x00'*len(raw):
+                break
+            virtual_end = section_header.VirtualAddress + section_header.Misc.VirtualSize
+        
+        return raw == b'\x00'*len(raw)
+    
+    
     def _map_to_memory(self) -> None:
         if not self.sections_header:
             raise InvalidPEHeader('No sections found')
+        
+        if self._is_mapped():
+            return
+        
         size = self.nt_header.OptionalHeader.SizeOfImage
         raw = BytesIO(b'\x00'*size)
         
