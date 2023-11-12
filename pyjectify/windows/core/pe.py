@@ -6,13 +6,13 @@ from pyjectify.windows.core.defines import *
 class PE:
     """This class represents a PE and provides methods to parse it"""
     
-    raw: bytes #: Raw bytes of the PE
+    raw: bytes #: Raw bytes of the PE, mapped to memory
     base_addr: int #: Base address of the PE
     dos_header: IMAGE_DOS_HEADER #: DOS headers
     nt_header: IMAGE_NT_HEADERS32 #: NT headers
     x86: bool #: Specify if the PE is a 32-bit PE
     sections_header: list[IMAGE_SECTION_HEADER] #: PE sections headers
-    sections: list #: PE sections, list of (VirtualAddress, SizeOfRawData, PageProtection) tuple
+    sections: list #: PE sections, list of (VirtualAddress, VirtualSize, PageProtection) tuple
     exports: dict #: PE exports, dict of function_name -> function_address ; addresses are relative to the module base address
     imports: dict #: PE imports, dict of library_name -> [(function_name, function_address)...]
     
@@ -71,7 +71,7 @@ class PE:
             elif protectR and protectW and not protectX:
                 protect = PAGE_READWRITE
             
-            self.sections.append((section_header.VirtualAddress, section_header.SizeOfRawData, protect))
+            self.sections.append((section_header.VirtualAddress, section_header.Misc.VirtualSize, protect))
         
         if not headers_only:
             if not mapped:
