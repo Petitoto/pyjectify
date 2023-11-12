@@ -48,22 +48,30 @@ class Inject:
             return self._process.get_module(libpath)
     
     
-    def memory_loader(self, module: PE, copy_headers: bool = True) -> PE:
+    def memory_loader(self, module: PE, prefer_base_addr: bool = True, copy_headers: bool = True) -> PE:
         """Fully map a library from memory in the target process, resolving imports and ApiSet
         
         Args:
             module: a PyJectify's PE object representinf the library to load in the target process
-            copy_headers: specify if the PE headers have to be copied into the target process' memory
+            prefer_base_addr: specify whether to load the module at the PE's default base address
+            copy_headers: specify whether to copy the PE headers to the target process memory
         
         Returns:
             A PyJectify's PE object representing the library loaded in the target process
         """
-        try:
-            addr = self._process.allocate(len(module.raw), preferred_addr=module.base_addr)
-        except:
-            addr = self._process.allocate(len(module.raw))
-        module.change_base(addr)
+        start = 0
+        if not copy_headers:
+            start = module.sections_header[0].VirtualAddress
         
+        try:
+            preferred_addr = None
+            if prefer_base_addr:
+                preferred_addr = module.base_addr + start
+            addr = self._process.allocate(len(module.raw) - start, preferred_addr=preferred_addr)
+        except:
+            addr = self._process.allocate(len(module.raw) - start)
+        module.change_base(addr - start)
+                
         apisetschema = ApiSetSchema()
         
         for import_dll in module.imports.keys():
@@ -87,12 +95,8 @@ class Inject:
                 
                 module.patch_import(thunk_addr, proc_addr)
         
-        if not copy_headers:
-            module.raw = b'\x00'*module.sections_header[0].VirtualAddress + module.raw[module.sections_header[0].VirtualAddress:]
-        
-        self._process.write(module.base_addr, module.raw)
-        
-        self._process.protect(module.base_addr, module.sections_header[0].VirtualAddress, PAGE_READONLY)
+        self._process.write(module.base_addr+start, module.raw[start:])
+        self._process.protect(module.base_addr+start, len(module.raw[start:]), PAGE_READONLY)
         
         for section_addr, section_size, protect in module.sections:
             self._process.protect(module.base_addr + section_addr, section_size, protect)

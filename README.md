@@ -125,6 +125,6 @@ syscall.get_common(from_disk=True)
 # Use direct syscalls to operate on proc2 (memory read / write / protect, thread creation...)
 proc2.process.ntdll = syscall
 
-# Inject the module directly from memory into proc2, without copying PE headers
-proc2.inject.memory_loader(module, copy_headers=False)
+# Inject the module directly from memory into proc2, at a random location and without copying PE headers
+proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False)
 ```
