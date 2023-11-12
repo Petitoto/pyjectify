@@ -106,12 +106,12 @@ class PE:
         
         virtual_end = section_addr + len(self.sections_header) * ctypes.sizeof(IMAGE_SECTION_HEADER)
         for section_header in self.sections_header:
-            raw = self.raw[virtual_end:section_header.VirtualAddress]
-            if raw != b'\x00'*len(raw):
+            data = self.raw[virtual_end:section_header.VirtualAddress]
+            if data != b'\x00'*len(data):
                 break
             virtual_end = section_header.VirtualAddress + section_header.Misc.VirtualSize
         
-        return raw == b'\x00'*len(raw)
+        return data == b'\x00'*len(data)
     
     
     def _map_to_memory(self) -> None:
