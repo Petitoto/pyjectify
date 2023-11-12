@@ -63,7 +63,6 @@ class Syscall:
         
         if from_disk:
             ntdll_pe = PE(open(ctypes.util.find_library('ntdll.dll'), 'rb').read())
-            ntdll_pe.parse_exports()
             addr = ntdll_pe.exports[syscall]
             data = ntdll_pe.raw[addr:addr+8]
         else:

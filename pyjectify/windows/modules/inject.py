@@ -35,7 +35,6 @@ class Inject:
         addr = self._process.allocate(len(libpath))
         self._process.write(addr, libpath)
         kernel32_mod = self._process.get_module('kernel32.dll')
-        kernel32_mod.parse_exports()
         loadlibrary_addr = kernel32_mod.base_addr + kernel32_mod.exports['LoadLibraryA']
         thread_h = self._process.start_thread(loadlibrary_addr, addr)
         lib_h = self._process.join_thread(thread_h)
@@ -59,9 +58,6 @@ class Inject:
         Returns:
             A PyJectify's PE object representing the library loaded in the target process
         """
-        module.map_to_memory()
-        module.parse_imports()
-        
         try:
             addr = self._process.allocate(len(module.raw), preferred_addr=module.base_addr)
         except:
@@ -72,7 +68,6 @@ class Inject:
         
         for import_dll in module.imports.keys():
             import_module = self.load_library(apisetschema.resolve(import_dll))
-            import_module.parse_exports()
             
             for proc_name, thunk_addr in module.imports[import_dll]:
                 forwarded = import_module.forwarded_export(proc_name)
@@ -85,7 +80,6 @@ class Inject:
                         forwarded_export = int(forwarded_export[1:])
                     
                     forwarded_module = self.load_library(apisetschema.resolve(forwarded_dll))
-                    forwarded_module.parse_exports()
                     proc_addr = forwarded_module.base_addr + forwarded_module.exports[forwarded_export]
                 
                 else:

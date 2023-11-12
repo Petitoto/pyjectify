@@ -67,7 +67,6 @@ notepad = pyjectify.byName('Notepad.exe')[0]
 
 # Inject Python DLL
 notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
-notepad.pythonlib.python_mod.parse_exports()
 
 # Run some Python code from notepad
 notepad.pythonlib.initialize()
@@ -84,7 +83,7 @@ import pyjectify
 # Open notepad process & inject Python DLL
 notepad = pyjectify.byName('Notepad.exe')[0]
 notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
-notepad.pythonlib.python_mod.parse_exports()
+notepad.pythonlib.initialize()
 
 # Let's hook GetClipboardData!
 # Step 1: define our new function
@@ -98,7 +97,6 @@ notepad.pythonlib.exec(pycode)
 
 # Step 2: get original function address and setup a trampoline (of 15 bytes size)
 user32 = notepad.process.get_module('user32.dll')
-user32.parse_exports()
 oaddr = user32.exports['GetClipboardData'] + user32.base_addr
 trampoline_addr = notepad.hook.trampoline(oaddr, 15)
 

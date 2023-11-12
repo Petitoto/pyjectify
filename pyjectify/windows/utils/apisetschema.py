@@ -20,7 +20,7 @@ class ApiSetSchema:
         
         for section in apisetschema.sections_header:
             if bytes(section.Name).strip(b'\x00') == b'.apiset':
-                self._data = apisetschema.raw[section.PointerToRawData:section.PointerToRawData+section.SizeOfRawData]
+                self._data = apisetschema.raw[section.VirtualAddress:section.VirtualAddress+section.SizeOfRawData]
                 break
         
         if not self._data:

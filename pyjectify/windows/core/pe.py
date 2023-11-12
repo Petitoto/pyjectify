@@ -8,7 +8,6 @@ class PE:
     
     raw: bytes #: Raw bytes of the PE
     base_addr: int #: Base address of the PE
-    mapped: bool #: Specify if the PE is mapped to memory
     dos_header: IMAGE_DOS_HEADER #: DOS headers
     nt_header: IMAGE_NT_HEADERS32 #: NT headers
     x86: bool #: Specify if the PE is a 32-bit PE
@@ -17,10 +16,9 @@ class PE:
     exports: dict #: PE exports, dict of function_name -> function_address ; addresses are relative to the module base address
     imports: dict #: PE imports, dict of library_name -> [(function_name, function_address)...]
     
-    def __init__(self, raw: bytes, base_addr: int = 0, mapped: bool = False) -> None:
+    def __init__(self, raw: bytes, base_addr: int = 0, mapped: bool = False, headers_only: bool = False) -> None:
         self.raw = raw
         self.base_addr = base_addr
-        self.mapped = mapped
         self.sections_header = []
         self.sections = []
         self.exports = {}
@@ -74,6 +72,12 @@ class PE:
                 protect = PAGE_READWRITE
             
             self.sections.append((section_header.VirtualAddress, section_header.SizeOfRawData, protect))
+        
+        if not headers_only:
+            if not mapped:
+                self._map_to_memory()
+            self._parse_imports()
+            self._parse_exports()
     
     
     def _fill_struct(self, struct: ctypes.Structure, addr: ctypes.Structure) -> ctypes.Structure:
@@ -95,11 +99,7 @@ class PE:
         return data[:data.find(0)].decode()
     
     
-    def map_to_memory(self) -> None:
-        """Map PE sections to memory"""
-        if self.mapped:
-            return
-        
+    def _map_to_memory(self) -> None:
         if not self.sections_header:
             raise InvalidPEHeader('No sections found')
         size = self.nt_header.OptionalHeader.SizeOfImage
@@ -113,12 +113,13 @@ class PE:
         
         raw.seek(0)
         self.raw = raw.read()
-        self.mapped = True
     
     
-    def parse_imports(self) -> None:
-        """Parse PE imports"""
+    def _parse_imports(self) -> None:
         data_directory = self.nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
+        
+        if not data_directory.VirtualAddress:
+            return
         
         offset = 0
         import_dir = self._fill_struct(IMAGE_IMPORT_DESCRIPTOR, data_directory.VirtualAddress)
@@ -159,9 +160,12 @@ class PE:
             import_dir = self._fill_struct(IMAGE_IMPORT_DESCRIPTOR, data_directory.VirtualAddress + offset)
     
     
-    def parse_exports(self) -> None:
-        """Parse PE exports"""
+    def _parse_exports(self) -> None:
         data_directory = self.nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]
+        
+        if not data_directory.VirtualAddress:
+            return
+        
         export_directory = self._fill_struct(IMAGE_EXPORT_DIRECTORY, data_directory.VirtualAddress)
         
         if export_directory.AddressOfFunctions:

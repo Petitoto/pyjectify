@@ -377,7 +377,7 @@ class ProcessHandle:
         """
         sysinfo = SYSTEM_INFO()
         kernel32.GetNativeSystemInfo(ctypes.byref(sysinfo))
-        headers = PE(self.read(hmodule, sysinfo.dwPageSize), hmodule)
+        headers = PE(self.read(hmodule, sysinfo.dwPageSize), hmodule, headers_only=True)
 
         raw = BytesIO(b'\x00'*headers.nt_header.OptionalHeader.SizeOfImage)
         raw.write(headers.raw)
