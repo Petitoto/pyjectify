@@ -71,7 +71,7 @@ class Inject:
         except:
             addr = self._process.allocate(len(module.raw) - start)
         module.change_base(addr - start)
-                
+        
         apisetschema = ApiSetSchema()
         
         for import_dll in module.imports.keys():
