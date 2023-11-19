@@ -29,6 +29,8 @@ class Syscall:
     """This class represents a NTDLL-like object and provides methods parse and use direct syscalls
     
     You can use Syscall.NtFunc(args) to call a NTDLL function. If the syscode was retrieved, this method will use a direct syscall. Else it will fallback to loaded ntdll.
+    
+    This util does not support WOW64.
     """
     
     syscalltable: dict #: Dict of syscall -> syscode, store the retrieved syscall codes
@@ -38,7 +40,7 @@ class Syscall:
         self.syscalltable = syscalltable
         
         self._process = ProcessHandle(-1)
-        if self._process.windowsx86:
+        if self._process.x86 and not self._process.wow64:
             syscall = _syscall_x86
         else:
             syscall = _syscall_x64
