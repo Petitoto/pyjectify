@@ -255,19 +255,19 @@ class ProcessHandle:
     
     
     def _read_memory(self, addr: int, size: int) -> bytes:
-        data = (ctypes.c_char * size).from_address(addr)
+        data = (CHAR * size).from_address(addr)
         return data.raw
     
     
     def _read_process_memory(self, addr: int, size: int) -> bytes:
-        data = (ctypes.c_char * size)()
+        data = (CHAR * size)()
         if not kernel32.ReadProcessMemory(self.handle, addr, ctypes.byref(data), ctypes.sizeof(data), None):
             raise WinAPIError('ReadProcessMemory - %s' % (kernel32.GetLastError()))
         return data.raw
     
     
     def _nt_read_virtual_memory(self, addr: int, size: int) -> bytes:
-        data = (ctypes.c_char * size)()
+        data = (CHAR * size)()
         status = self.ntdll.NtReadVirtualMemory(self.handle, addr, ctypes.byref(data), ctypes.sizeof(data), None)
         if status:
             raise WinAPIError('NtReadVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
@@ -286,7 +286,7 @@ class ProcessHandle:
     def _rtl_move_memory(self, addr: int, data: str | bytes) -> None:
         if isinstance(data, str):
             data = data.encode('utf-8')
-        wr_data = (ctypes.c_char * len(data))()
+        wr_data = (CHAR * len(data))()
         wr_data.value = data
         if not kernel32.RtlMoveMemory(addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data)):
             raise WinAPIError('RtlMoveMemory - %s' % (kernel32.GetLastError()))
@@ -295,7 +295,7 @@ class ProcessHandle:
     def _write_process_memory(self, addr: int, data: str | bytes) -> None:
         if isinstance(data, str):
             data = data.encode('utf-8')
-        wr_data = (ctypes.c_char * len(data))()
+        wr_data = (CHAR * len(data))()
         wr_data.value = data
         if not kernel32.WriteProcessMemory(self.handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None):
             raise WinAPIError('WriteProcessMemory - %s' % (kernel32.GetLastError()))
@@ -304,7 +304,7 @@ class ProcessHandle:
     def _nt_write_virtual_memory(self, addr: int, data: str | bytes) -> None:
         if isinstance(data, str):
             data = data.encode('utf-8')
-        wr_data = (ctypes.c_char * len(data))()
+        wr_data = (CHAR * len(data))()
         wr_data.value = data
         status = self.ntdll.NtWriteVirtualMemory(self.handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None)
         if status:
@@ -399,21 +399,21 @@ class ProcessHandle:
         """
         fullpath = isabs(lib)
         
-        modules = (ctypes.wintypes.HANDLE * 1)()
+        modules = (HANDLE * 1)()
         size = DWORD()
         if not psapi.EnumProcessModulesEx(self.handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
             raise WinAPIError('EnumProcessModulesEx - %s' % (kernel32.GetLastError()))
-        modules = (ctypes.wintypes.HANDLE * size.value)()
+        modules = (HANDLE * size.value)()
         if not psapi.EnumProcessModulesEx(self.handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
             raise WinAPIError('EnumProcessModulesEx - %s' % (kernel32.GetLastError()))
         
         for module in modules:
-            name = ctypes.c_char_p(b' '*1024)
+            name = LPCSTR(b' '*1024)
             if fullpath:
-                if not psapi.GetModuleFileNameExA(self.handle, module, name, ctypes.c_ulong(1024)):
+                if not psapi.GetModuleFileNameExA(self.handle, module, name, ULONG(1024)):
                     raise WinAPIError('GetModuleFileNameExA - %s' % (kernel32.GetLastError()))
             else:
-                if not psapi.GetModuleBaseNameA(self.handle, module, name, ctypes.c_ulong(1024)):
+                if not psapi.GetModuleBaseNameA(self.handle, module, name, ULONG(1024)):
                     raise WinAPIError('GetModuleBaseNameA - %s' % (kernel32.GetLastError()))
             
             if str(name.value.decode().lower()) == lib.lower():

@@ -501,7 +501,7 @@ class IMAGE_THUNK_DATA64(ctypes.Structure):
 class IMAGE_IMPORT_BY_NAME(ctypes.Structure):
     _fields_ = [
         ('Hint', WORD),
-        ('Name', ctypes.c_char * 512),
+        ('Name', CHAR * 512),
     ]
 
 class BASE_RELOCATION_BLOCK(ctypes.Structure):
@@ -742,7 +742,7 @@ ntdll.NtFreeVirtualMemory.argtypes = (HANDLE, LPVOID, POINTER(SIZE_T), DWORD)
 ntdll.NtProtectVirtualMemory.restype = DWORD
 ntdll.NtProtectVirtualMemory.argtypes = (HANDLE, LPVOID, POINTER(SIZE_T), DWORD, POINTER(DWORD))
 ntdll.NtQueryVirtualMemory.restype = DWORD
-ntdll.NtQueryVirtualMemory.argtypes = (HANDLE, LPVOID, ctypes.c_uint, LPVOID, SIZE_T, POINTER(SIZE_T))
+ntdll.NtQueryVirtualMemory.argtypes = (HANDLE, LPVOID, UINT, LPVOID, SIZE_T, POINTER(SIZE_T))
 ntdll.NtReadVirtualMemory.restype = DWORD
 ntdll.NtReadVirtualMemory.argtypes = (HANDLE, LPCVOID, LPVOID, SIZE_T, LPVOID)
 ntdll.NtWriteVirtualMemory.restype = DWORD
