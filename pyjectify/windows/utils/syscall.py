@@ -1,3 +1,4 @@
+import ctypes.util
 from typing import Dict, Callable
 
 from pyjectify.windows.core.defines import *
@@ -9,7 +10,11 @@ _syscode_signatures = [
     b'\x4c\x8b\xd1\xb8'      # mov    r10,rcx ; mov    rax, syscode (x64)
     ]
 
-_syscall_x86 = b'\x58'                     # pop   eax
+_syscall_x86 = b'\x5a'                     # pop    edx
+_syscall_x86 += b'\x58'                    # pop    eax
+_syscall_x86 += b'\x50'                    # push   eax
+_syscall_x86 += b'\x52'                    # push   edx
+_syscall_x86 += b'\x89\xe2'                # mov    edx,esp
 _syscall_x86 += b'\x0f\x34'                # sysenter
 _syscall_x86 += b'\xc3'                    # ret
 
@@ -77,7 +82,7 @@ class Syscall:
         
         if i < len(_syscode_signatures):
             offset = len(_syscode_signatures[i])
-            syscode = int.from_bytes(data[offset:offset+5], 'little')
+            syscode = int.from_bytes(data[offset:offset+4], 'little')
         else:
             raise AssertionError('Syscall code to %s not found in ntdll' % (syscall))
         
