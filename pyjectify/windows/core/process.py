@@ -5,6 +5,15 @@ from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
 
 
+_run_func_x64 = b'\x5b'                        # pop    rbx
+_run_func_x64 += b'\x48\xb8%s'                 # mov    rax, addr
+_run_func_x64 += b'\xff\xd0'                   # call   rax
+_run_func_x64 += b'\x48\xba%s'                 # mov    rdx, ret_addr
+_run_func_x64 += b'\x48\x89\x02'               # mov    QWORD PTR [rdx], rax
+_run_func_x64 += b'\x53'                       # push   rbx
+_run_func_x64 += b'\xc3'                       # ret 
+
+
 def getpid(process: str) -> list[int]:
     """Get PIDs associated with a process name
     
@@ -186,7 +195,7 @@ class ProcessHandle:
         
         Args:
             addr: address of the memory region to free
-            size: size of the memory region to free
+            size: size of the memory region to free (must be 0 if flag is MEM_RELEASE)
             flags: the type of free operation
         """
     
@@ -316,7 +325,7 @@ class ProcessHandle:
         
         Args:
             addr: address of the function
-            arg: address to an argument for the function
+            arg: address of the parameter to pass to the function
         
         Returns:
             A handle to the thread started
@@ -362,6 +371,36 @@ class ProcessHandle:
         if not kernel32.CloseHandle(handle):
             raise WinAPIError('CloseHandle - %s' % (kernel32.GetLastError()))
         return exit_code
+    
+    
+    def start_join_thread_x64(self, addr: int, arg: int | None = None) -> int:
+        """Start a thread in the target process, join the thread and get the 64-bits return value. Only available on x64.
+        
+        Args:
+            addr: address of the function
+            arg: address of the parameter to pass to the function
+        
+        Returns:
+            A handle to the thread started
+        """
+        if self.x86:
+            raise InvalidPlatform('start_join_thread_x64 is only available on x64')
+        
+        ret_addr = self.allocate(8)
+        
+        run_func = _run_func_x64 % (addr.to_bytes(8, 'little'), ret_addr.to_bytes(8, 'little'))
+        run_func_addr = self.allocate(len(run_func))
+        self.write(run_func_addr, run_func)
+        self.protect(run_func_addr, len(run_func), PAGE_EXECUTE_READ)
+        
+        thread = self.start_thread(run_func_addr, arg)
+        self.join_thread(thread)
+        
+        retval = self.read(ret_addr, 8)
+        self.free(ret_addr)
+        self.free(run_func_addr)
+        
+        return int.from_bytes(retval, 'little')
     
     
     def module_from_hmodule(self, hmodule: int) -> PE:
@@ -425,4 +464,9 @@ class ProcessHandle:
 
 class WinAPIError(Exception):
     """Exception for Windows API errors"""
+    pass
+
+
+class InvalidPlatform(Exception):
+    """Exception for invalid target platform"""
     pass
