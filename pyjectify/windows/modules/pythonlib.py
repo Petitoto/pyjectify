@@ -25,6 +25,7 @@ class PythonLib:
     def __init__(self, process: ProcessHandle, python_mod: PE | None = None) -> None:
         self._process = process
         self.python_mod = python_mod
+        self._tstate = None
     
     
     def setprogramname(self, programname: str) -> None:
@@ -111,23 +112,27 @@ class PythonLib:
             initialize_thread = self._process.start_thread(py_initialize_ex, initsigs)
             self._process.join_thread(initialize_thread)
             
-            savethread_thread = self._process.start_thread(py_eval_save_thread, initsigs)
-            self._process.join_thread(savethread_thread)
+            if self._process.x86:
+                savethread_thread = self._process.start_thread(py_eval_save_thread)
+                self._tstate = self._process.join_thread(savethread_thread)
+            else:
+                self._tstate = self._process.start_join_thread_x64(py_eval_save_thread)
     
     
     def exec(self, py_code: str) -> None:
         """Execute python code in the target process (acquire and then release the GIL). Python interpreter MUST be initialized.
-        This method calls PyGILState_Ensure + PyRun_SimpleString + PyEval_SaveThread
+        This method calls PyEval_RestoreThread + PyRun_SimpleString + PyEval_SaveThread
         
         Args:
             py_code: the python code to run
         """
-        py_gil_state_ensure = self.python_mod.base_addr + self.python_mod.exports['PyGILState_Ensure']
+        py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
         py_run_simple_string = self.python_mod.base_addr + self.python_mod.exports['PyRun_SimpleString']
         py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
         
-        gil_ensure_thread = self._process.start_thread(py_gil_state_ensure)
-        self._process.join_thread(gil_ensure_thread)
+        if self._tstate:
+            restorethread_thread = self._process.start_thread(py_eval_restore_thread, self._tstate)
+            self._process.join_thread(restorethread_thread)
         
         pycode_addr = self._process.allocate(len(py_code))
         self._process.write(pycode_addr, py_code)
@@ -135,19 +140,22 @@ class PythonLib:
         self._process.join_thread(exec_thread)
         self._process.free(pycode_addr)
         
-        savethread_thread = self._process.start_thread(py_eval_save_thread)
-        self._process.join_thread(savethread_thread)
+        if self._process.x86:
+            savethread_thread = self._process.start_thread(py_eval_save_thread)
+            self._tstate = self._process.join_thread(savethread_thread)
+        else:
+            self._tstate = self._process.start_join_thread_x64(py_eval_save_thread)
     
     
     def finalize(self) -> None:
         """Undo all initializations of the Python interpreter in the target process
-        This method calls PyGILState_Ensure + Py_FinalizeEx
+        This method calls PyEval_RestoreThread + Py_FinalizeEx
         """
-        py_gil_state_ensure = self.python_mod.base_addr + self.python_mod.exports['PyGILState_Ensure']
+        py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
         py_finalize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_FinalizeEx']
         
-        gil_ensure_thread = self._process.start_thread(py_gil_state_ensure)
-        self._process.join_thread(gil_ensure_thread)
+        restorethread_thread = self._process.start_thread(py_eval_restore_thread, self._tstate)
+        self._process.join_thread(restorethread_thread)
         
         thread = self._process.start_thread(py_finalize_ex)
         self._process.join_thread(thread)
