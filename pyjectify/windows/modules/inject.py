@@ -41,9 +41,9 @@ class Inject:
         self._process.free(addr)
         
         if self._process.x86:
-            if not lib_h.value:
+            if not lib_h:
                 raise WinAPIError('Remote LoadLibraryA failed')
-            return self._process.module_from_hmodule(lib_h.value)
+            return self._process.module_from_hmodule(lib_h)
         else:
             return self._process.get_module(libpath)
     

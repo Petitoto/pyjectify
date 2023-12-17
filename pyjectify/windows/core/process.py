@@ -370,7 +370,7 @@ class ProcessHandle:
             raise WinAPIError('GetExitCodeThread - %s' % (kernel32.GetLastError()))
         if not kernel32.CloseHandle(handle):
             raise WinAPIError('CloseHandle - %s' % (kernel32.GetLastError()))
-        return exit_code
+        return exit_code.value
     
     
     def start_join_thread_x64(self, addr: int, arg: int | None = None) -> int:
