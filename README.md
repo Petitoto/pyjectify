@@ -13,7 +13,7 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 
 
 ## Features
-### Windows
+### Windows (x86 & x86_64)
 #### Core
 - Allocate / Free / Read / Write memory
 - Create threads
@@ -25,10 +25,10 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 - MemScan: scan memory using regex patterns
 - Inject: load library, from disk (remote LoadLibrary) or from memory (fully map the DLL into the remote process)
 - Hook: set up inline hooks in the target process
-- PythonLib: embed python into a remote process (Python 3.10 - 3.11 supported)
+- PythonLib: embed python into a remote process (Python 3.6 - 3.11 supported)
 
 #### Utils
-- Syscall: Parse syscall codes from ntdll.dll (from the loaded library or from the disk), and produce a ntdll-like object which can be used by the Inject module to use direct syscalls
+- Syscall: parse syscall codes from ntdll.dll (from the loaded library or from the disk), and produce a ntdll-like object which can be used by the core to use direct syscalls
 - ApiSetSchema: parse Windows ApiSet
 
 
