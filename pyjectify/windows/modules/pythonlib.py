@@ -25,7 +25,7 @@ class PythonLib:
     def __init__(self, process: ProcessHandle, python_mod: PE | None = None) -> None:
         self._process = process
         self.python_mod = python_mod
-        self._tstate = None
+        self._tstate = 0
     
     
     def setprogramname(self, programname: str) -> None:
@@ -109,14 +109,8 @@ class PythonLib:
             py_initialize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_InitializeEx']
             py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
             
-            initialize_thread = self._process.start_thread(py_initialize_ex, initsigs)
-            self._process.join_thread(initialize_thread)
-            
-            if self._process.x86:
-                savethread_thread = self._process.start_thread(py_eval_save_thread)
-                self._tstate = self._process.join_thread(savethread_thread)
-            else:
-                self._tstate = self._process.start_join_thread_x64(py_eval_save_thread)
+            ret = self._process.run_funcs([(py_initialize_ex, initsigs), (py_eval_save_thread, 0)])
+            self._tstate = ret[1]
     
     
     def exec(self, py_code: str) -> None:
@@ -129,22 +123,13 @@ class PythonLib:
         py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
         py_run_simple_string = self.python_mod.base_addr + self.python_mod.exports['PyRun_SimpleString']
         py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
-        
-        if self._tstate:
-            restorethread_thread = self._process.start_thread(py_eval_restore_thread, self._tstate)
-            self._process.join_thread(restorethread_thread)
-        
+                
         pycode_addr = self._process.allocate(len(py_code))
         self._process.write(pycode_addr, py_code)
-        exec_thread = self._process.start_thread(py_run_simple_string, pycode_addr)
-        self._process.join_thread(exec_thread)
-        self._process.free(pycode_addr)
         
-        if self._process.x86:
-            savethread_thread = self._process.start_thread(py_eval_save_thread)
-            self._tstate = self._process.join_thread(savethread_thread)
-        else:
-            self._tstate = self._process.start_join_thread_x64(py_eval_save_thread)
+        ret = self._process.run_funcs([(py_eval_restore_thread, self._tstate), (py_run_simple_string, pycode_addr), (py_eval_save_thread, 0)])
+        self._tstate = ret[2]
+        return
     
     
     def finalize(self) -> None:
@@ -154,11 +139,8 @@ class PythonLib:
         py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
         py_finalize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_FinalizeEx']
         
-        restorethread_thread = self._process.start_thread(py_eval_restore_thread, self._tstate)
-        self._process.join_thread(restorethread_thread)
-        
-        thread = self._process.start_thread(py_finalize_ex)
-        self._process.join_thread(thread)
+        self._process.run_funcs([(py_eval_restore_thread, self._tstate), (py_finalize_ex, 0)])
+        self._tstate = 0
     
     
     def prepare_hook(self, func: str, ofunc_addr: int = 0) -> int:

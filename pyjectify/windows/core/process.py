@@ -5,13 +5,22 @@ from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
 
 
-_run_func_x64 = b'\x5b'                        # pop    rbx
-_run_func_x64 += b'\x48\xb8%s'                 # mov    rax, addr
-_run_func_x64 += b'\xff\xd0'                   # call   rax
-_run_func_x64 += b'\x48\xba%s'                 # mov    rdx, ret_addr
-_run_func_x64 += b'\x48\x89\x02'               # mov    QWORD PTR [rdx], rax
-_run_func_x64 += b'\x53'                       # push   rbx
-_run_func_x64 += b'\xc3'                       # ret 
+_run_func_x86 = b'\xb8%s'                   # mov    eax, addr
+_run_func_x86 += b'\x68%s'                  # push   arg
+_run_func_x86 += b'\xff\xd0'                # call   eax
+_run_func_x86 += b'\xba%s'                  # mov    edx, ret_addr
+_run_func_x86 += b'\x89\x02'                # mov    DWORD PTR [edx], eax
+
+_run_func_x64 = b'\x48\xb8%s'               # mov    rax, addr
+_run_func_x64 += b'\x48\xb9%s'              # mov    rcx, arg
+_run_func_x64 += b'\xff\xd0'                # call   rax
+_run_func_x64 += b'\x48\xba%s'              # mov    rdx, ret_addr
+_run_func_x64 += b'\x48\x89\x02'            # mov    QWORD PTR [rdx], rax
+
+_run_func_ret = b'\x5b'                     # pop    rbx
+_run_func_ret += b'%s'                      # _run_func, _run_func, _run_func...
+_run_func_ret += b'\x53'                    # push   rbx
+_run_func_ret += b'\xc3'                    # ret
 
 
 def getpid(process: str) -> list[int]:
@@ -373,34 +382,48 @@ class ProcessHandle:
         return exit_code.value
     
     
-    def start_join_thread_x64(self, addr: int, arg: int | None = None) -> int:
-        """Start a thread in the target process, join the thread and get the 64-bits return value. Only available on x64.
+    def run_funcs(self, funcs: list[tuple[int, int]]) -> list[int]:
+        """Run multiple functions in the same new thread
         
         Args:
-            addr: address of the function
-            arg: address of the parameter to pass to the function
+            funcs: list of tuples (addr, arg) with each function to call with its parameter
         
         Returns:
-            A handle to the thread started
+            A list of the return values for each called function
         """
+        n = len(funcs)
         if self.x86:
-            raise InvalidPlatform('start_join_thread_x64 is only available on x64')
+            run_func = _run_func_x86
+            basesize = 4
+        else:
+            run_func = _run_func_x64
+            basesize = 8
         
-        ret_addr = self.allocate(8)
+        ret_addr = self.allocate(n*basesize)
         
-        run_func = _run_func_x64 % (addr.to_bytes(8, 'little'), ret_addr.to_bytes(8, 'little'))
-        run_func_addr = self.allocate(len(run_func))
-        self.write(run_func_addr, run_func)
-        self.protect(run_func_addr, len(run_func), PAGE_EXECUTE_READ)
+        thread_code = b''
+        for i, (addr, arg) in enumerate(funcs):
+            addr = addr.to_bytes(basesize, 'little')
+            arg = arg.to_bytes(basesize, 'little')
+            ret = (ret_addr + i*basesize).to_bytes(basesize, 'little')
+            thread_code += run_func % (addr, arg, ret)
+        thread_code = _run_func_ret % thread_code
         
-        thread = self.start_thread(run_func_addr, arg)
+        thread_code_addr = self.allocate(len(thread_code))
+        self.write(thread_code_addr, thread_code)
+        self.protect(thread_code_addr, len(thread_code), PAGE_EXECUTE_READ)
+        
+        thread = self.start_thread(thread_code_addr)
         self.join_thread(thread)
         
-        retval = self.read(ret_addr, 8)
-        self.free(ret_addr)
-        self.free(run_func_addr)
+        retvals = []
+        for i in range(n):
+            retval = self.read(ret_addr + i*basesize, basesize)
+            retvals.append(int.from_bytes(retval, 'little'))
         
-        return int.from_bytes(retval, 'little')
+        self.free(ret_addr)
+        self.free(thread_code_addr)
+        return retvals
     
     
     def module_from_hmodule(self, hmodule: int) -> PE:
@@ -464,9 +487,4 @@ class ProcessHandle:
 
 class WinAPIError(Exception):
     """Exception for Windows API errors"""
-    pass
-
-
-class InvalidPlatform(Exception):
-    """Exception for invalid target platform"""
     pass
