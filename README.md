@@ -25,7 +25,7 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 - MemScan: scan memory using regex patterns
 - Inject: load library, from disk (remote LoadLibrary) or from memory (fully map the DLL into the remote process)
 - Hook: set up inline hooks in the target process
-- PythonLib: embed python into a remote process (Python 3.6 - 3.11 supported)
+- PythonLib: embed python into a remote process
 
 #### Utils
 - Syscall: parse syscall codes from ntdll.dll (from the loaded library or from the disk), and produce a ntdll-like object which can be used by the core to use direct syscalls
@@ -116,7 +116,7 @@ proc1 = pyjectify.byName('proc1.exe')[0]
 proc2 = pyjectify.byName('proc2.exe')[0]
 
 # Extract a library from proc1's memory
-module = proc1.process.get_module('module.dll')[0]
+module = proc1.process.get_module('module.dll')
 
 # Extract common syscalls from ntdll.dll and wrap them into a ntdll-like object
 syscall = pyjectify.windows.Syscall()
@@ -125,6 +125,6 @@ syscall.get_common(from_disk=True)
 # Use direct syscalls to operate on proc2 (memory read / write / protect, thread creation...)
 proc2.process.ntdll = syscall
 
-# Inject the module directly from memory into proc2, at a random location and without copying PE headers
+# Inject the module directly from memory into proc2, at a random location and without PE headers
 proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False)
 ```
