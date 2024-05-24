@@ -513,8 +513,8 @@ class BASE_RELOCATION_BLOCK(ctypes.Structure):
 class BASE_RELOCATION_ENTRY(ctypes.Structure):
     _pack_ = 1
     _fields_ = [
-        ('Offset', UINT, 12),
-        ('Type', UINT, 4),
+        ('Offset', ctypes.c_uint16, 12),
+        ('Type', ctypes.c_uint16, 4),
     ]
 
 

@@ -247,7 +247,7 @@ class PE:
                         raw.seek(relocation_addr)
                         
                         if entry.Type == IMAGE_REL_BASED_ABSOLUTE:
-                            break
+                            continue
                         
                         elif entry.Type == IMAGE_REL_BASED_HIGH:
                             address = self._read_int(relocation_addr, 2) + HIWORD(delta)
@@ -274,6 +274,15 @@ class PE:
                             raise InvalidPEHeader('Unknown relocation entry type - %s' % entry.Type)
                         
                     relocation = self._fill_struct(BASE_RELOCATION_BLOCK, relocations.VirtualAddress + offset)
+            
+            if self.x86:
+                self.nt_header.OptionalHeader.ImageBase = DWORD(base_addr)
+                raw.seek(self.dos_header.e_lfanew + IMAGE_NT_HEADERS32.OptionalHeader.offset + IMAGE_OPTIONAL_HEADER32.ImageBase.offset)
+                raw.write(base_addr.to_bytes(4, byteorder='little'))
+            else:
+                self.nt_header.OptionalHeader.ImageBase = ULONGLONG(base_addr)
+                raw.seek(self.dos_header.e_lfanew + IMAGE_NT_HEADERS64.OptionalHeader.offset + IMAGE_OPTIONAL_HEADER64.ImageBase.offset)
+                raw.write(base_addr.to_bytes(8, byteorder='little'))
             
             raw.seek(0)
             self.raw = raw.read()
