@@ -34,7 +34,11 @@ class PythonLib:
         Args:
             programname: the new programname
         """
-        programname = bytes(programname, encoding='utf-16le')
+        if programname:
+            programname = bytes(programname, encoding='utf-16le')
+        else:
+            programname = b'\x00'
+        
         addr = self._process.allocate(len(programname))
         self._process.write(addr, programname)
         
@@ -52,7 +56,11 @@ class PythonLib:
         Args:
             pythonpath: the PYTHON_PATH value
         """
-        pythonpath = bytes(pythonpath, encoding='utf-16le')
+        if pythonpath:
+            pythonpath = bytes(pythonpath, encoding='utf-16le')
+        else:
+            pythonpath = b'\x00'
+        
         addr = self._process.allocate(len(pythonpath))
         self._process.write(addr, pythonpath)
         
@@ -71,7 +79,11 @@ class PythonLib:
         Args:
             pythonhome: the PYTHON_HOME value
         """
-        pythonhome = bytes(pythonhome, encoding='utf-16le')
+        if pythonhome:
+            pythonhome = bytes(pythonhome, encoding='utf-16le')
+        else:
+            pythonhome = b'\x00'
+        
         addr = self._process.allocate(len(pythonhome))
         self._process.write(addr, pythonhome)
         
@@ -120,10 +132,13 @@ class PythonLib:
         Args:
             py_code: the python code to run
         """
+        if not py_code:
+            return
+        
         py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
         py_run_simple_string = self.python_mod.base_addr + self.python_mod.exports['PyRun_SimpleString']
         py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
-                
+        
         pycode_addr = self._process.allocate(len(py_code))
         self._process.write(pycode_addr, py_code)
         

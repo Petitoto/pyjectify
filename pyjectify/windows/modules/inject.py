@@ -32,6 +32,9 @@ class Inject:
         Returns:
             A PyJectify's PE object representing the library loaded in the target process
         """
+        if not libpath:
+            return
+        
         addr = self._process.allocate(len(libpath))
         self._process.write(addr, libpath)
         kernel32_mod = self._process.get_module('kernel32.dll')
