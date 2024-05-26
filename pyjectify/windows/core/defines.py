@@ -43,6 +43,8 @@ LPCWSTR = LPWSTR = ctypes.c_wchar_p
 LPCSTR = LPSTR = ctypes.c_char_p
 LPCVOID = LPVOID = ctypes.c_void_p
 
+WPARAM: type[ctypes.c_ulong] | type[ctypes.c_ulonglong]
+LPARAM: type[ctypes.c_long] | type[ctypes.c_longlong]
 if ctypes.sizeof(ctypes.c_long) == ctypes.sizeof(ctypes.c_void_p):
     WPARAM = ctypes.c_ulong
     LPARAM = ctypes.c_long
@@ -426,14 +428,14 @@ class IMAGE_NT_HEADERS64(ctypes.Structure):
     ]
 
 class IMAGE_SECTION_HEADER(ctypes.Structure):
-    class Misc(ctypes.Union):
+    class MiscUnion(ctypes.Union):
         _fields_ = [
             ('PhysicalAddress', DWORD),
             ('VirtualSize', DWORD),
         ]
     _fields_ = [
         ('Name', BYTE * 8),
-        ('Misc', Misc),
+        ('Misc', MiscUnion),
         ('VirtualAddress', DWORD),
         ('SizeOfRawData', DWORD),
         ('PointerToRawData', DWORD),

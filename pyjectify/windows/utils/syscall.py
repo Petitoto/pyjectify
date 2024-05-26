@@ -1,20 +1,20 @@
 import ctypes.util
-from typing import Dict, Callable
+from typing import Callable, Dict
 
 from pyjectify.windows.core.defines import *
-from pyjectify.windows.core.process import ProcessHandle
 from pyjectify.windows.core.pe import PE
+from pyjectify.windows.core.process import ProcessHandle
 
 _syscode_signatures = [
     b'\xb8',                 # mov    eax, syscode (x86)
     b'\x4c\x8b\xd1\xb8'      # mov    r10,rcx ; mov    rax, syscode (x64)
-    ]
+]
 
 _syscall_x86 = b'\x5a'                     # pop    edx
 _syscall_x86 += b'\x58'                    # pop    eax
 _syscall_x86 += b'\x50'                    # push   eax
 _syscall_x86 += b'\x52'                    # push   edx
-_syscall_x86 += b'\x89\xe2'                # mov    edx,esp
+_syscall_x86 += b'\x89\xe2'                # mov    edx, esp
 _syscall_x86 += b'\x0f\x34'                # sysenter
 _syscall_x86 += b'\xc3'                    # ret
 
@@ -38,8 +38,8 @@ class Syscall:
     This util does not support WOW64.
     """
     
-    syscalltable: dict #: Dict of syscall -> syscode, store the retrieved syscall codes
-    syscall: ctypes.CFUNCTYPE #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
+    syscalltable: dict  #: Dict of syscall -> syscode, store the retrieved syscall codes
+    syscall: Callable   #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
     
     def __init__(self, syscalltable: Dict[str, str] = {}) -> None:
         self.syscalltable = syscalltable
@@ -69,7 +69,10 @@ class Syscall:
         data = b''
         
         if from_disk:
-            ntdll_pe = PE(open(ctypes.util.find_library('ntdll.dll'), 'rb').read())
+            ntdll_path = ctypes.util.find_library('ntdll.dll')
+            if not ntdll_path:
+                raise AssertionError('ntdll.dll not found')
+            ntdll_pe = PE(open(ntdll_path, 'rb').read())
             addr = ntdll_pe.exports[syscall]
             data = ntdll_pe.raw[addr:addr+8]
         else:
@@ -105,15 +108,10 @@ class Syscall:
     
     
     def __getattr__(self, syscall: str) -> Callable:
-        if not syscall in self.syscalltable:
+        if syscall not in self.syscalltable:
             return ntdll.__getattribute__(syscall)
         
         syscode = self.syscalltable[syscall]
-        
-        try:
-            self.syscall.argtypes = (DWORD,) + ntdll.__getattribute__(syscall).argtypes
-        except:
-            pass
         
         def _call(*args):
             return self.syscall(syscode, *args)

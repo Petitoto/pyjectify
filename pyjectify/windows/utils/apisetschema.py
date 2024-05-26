@@ -1,16 +1,19 @@
 import os
+from typing import TypeVar
 
 from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
+
+STRUCT = TypeVar('STRUCT', bound=ctypes.Structure)
 
 
 class ApiSetSchema:
     """This class provide methods to parse and resolve Windows ApiSet"""
     
-    entries: dict #: Dict of api name -> api name defined by Windows ApiSet
+    entries: dict  #: Dict of api name -> api name defined by Windows ApiSet
     
     def __init__(self) -> None:
-        self._data = None
+        self._data = b""
         self.entries = {}
         
         kernel32.Wow64DisableWow64FsRedirection(LPVOID())
@@ -92,7 +95,7 @@ class ApiSetSchema:
             self.entries[entry_name] = entry_values
     
     
-    def _fill_struct(self, struct: ctypes.Structure, addr: int) -> ctypes.Structure:
+    def _fill_struct(self, struct: type[STRUCT], addr: int) -> STRUCT:
         length = ctypes.sizeof(struct)
         buf = self._read_raw(addr, length)
         return struct.from_buffer_copy(buf)
