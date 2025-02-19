@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'PyJectify'
-copyright = '2023, Petitoto'
+copyright = '2025, Petitoto'
 author = 'Petitoto'
 
 # -- General configuration ---------------------------------------------------

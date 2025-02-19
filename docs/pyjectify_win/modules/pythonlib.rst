@@ -2,7 +2,7 @@
 ================
 
 Classes, exceptions, and methods to run Python code in a remote process.
-Python >=3.6 supported
+PyJectify supports instrumenting Python >=3.6.
 
 .. automodule:: pyjectify.windows.modules.pythonlib
    :members:

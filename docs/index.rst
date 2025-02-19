@@ -6,8 +6,10 @@ A Python library for memory manipulation, code injection and function hooking.
 Install
 -------
 
+PyJectify requires Python >= 3.10.
+
 * `GitHub homepage`_
-* `Pypi homepage`_
+* `PyPI homepage`_
 
 Run
 ---
@@ -20,14 +22,15 @@ Importing ``pyjectify`` imports the submodule corresponding to your operating sy
 Other operating systems are not supported for now.
 
 .. automodule:: pyjectify
-    :members: system
+   :members: system
 
  
 .. toctree::
    :caption: Contents:
    :maxdepth: 1
    
+   examples.rst
    pyjectify_win/index.rst
 
 .. _GitHub homepage: https://github.com/Petitoto/pyjectify
-.. _Pypi homepage: https://pypi.org/project/pyjectify/
+.. _PyPI homepage: https://pypi.org/project/pyjectify/
