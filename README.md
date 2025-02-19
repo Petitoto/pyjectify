@@ -1,5 +1,6 @@
 <img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png" href="#">
 
+<style>h1 { border-bottom: 0; } </style>
 # PyJectify
 A Python library for memory manipulation, code injection and function hooking.
 
@@ -39,7 +40,7 @@ Documentation is available at https://petitoto.github.io/pyjectify/
 import pyjectify
 
 # Open notepad process (only the first found if multiple instances of notepad are running)
-notepad = pyjectify.byName('Notepad.exe')[0]
+notepad = pyjectify.open('notepad.exe')[0]
 
 # Use the pattern "secret( is)?: (.){10}", but encoded in utf-16-le because Notepad uses wchar_t
 words = ['secret', ' is', ': ', '.']
@@ -54,7 +55,7 @@ for addr in addrs:
     print('[+] Found secret:', secret)
     notepad.process.write(addr, ('*'*len(secret)).encode('utf-16-le')) # let's hide the secret!
 
-# Reset memscan to perform a new search regardless of the previous scan
+# Reset memscan to discard found addresses and perform a new search
 notepad.memscan.reset()
 ```
 
@@ -63,7 +64,7 @@ notepad.memscan.reset()
 import pyjectify
 
 # Open notepad process
-notepad = pyjectify.byName('Notepad.exe')[0]
+notepad = pyjectify.open('notepad.exe')[0]
 
 # Inject Python DLL
 notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
@@ -81,7 +82,7 @@ notepad.pythonlib.finalize()
 import pyjectify
 
 # Open notepad process & inject Python DLL
-notepad = pyjectify.byName('Notepad.exe')[0]
+notepad = pyjectify.open('notepad.exe')[0]
 notepad.pythonlib.python_mod = notepad.inject.load_library("C:\\path\\to\\python-embed\\python311.dll")
 notepad.pythonlib.initialize()
 
@@ -112,8 +113,8 @@ notepad.hook.inline(oaddr, hook_addr)
 import pyjectify
 
 # Open processes
-proc1 = pyjectify.byName('proc1.exe')[0]
-proc2 = pyjectify.byName('proc2.exe')[0]
+proc1 = pyjectify.open('proc1.exe')[0]
+proc2 = pyjectify.open('proc2.exe')[0]
 
 # Extract a library from proc1's memory
 module = proc1.process.get_module('module.dll')
@@ -125,6 +126,6 @@ syscall.get_common(from_disk=True)
 # Use direct syscalls to operate on proc2 (memory read / write / protect, thread creation...)
 proc2.process.ntdll = syscall
 
-# Inject the module directly from memory into proc2, at a random location and without PE headers
-proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False)
+# Inject the module directly from memory into proc2, at a random location, without PE headers, and do not call DllMain
+proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False, call_entry_point=False)
 ```
