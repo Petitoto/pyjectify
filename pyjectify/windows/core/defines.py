@@ -1,5 +1,5 @@
 import ctypes
-
+import ctypes.util
 
 # Windows libraries
 kernel32 = ctypes.windll.kernel32
@@ -24,10 +24,10 @@ FLOAT = ctypes.c_float
 BOOLEAN = BYTE
 BOOL = ctypes.c_long
 
-class VARIANT_BOOL(ctypes._SimpleCData):
+class VARIANT_BOOL(ctypes._SimpleCData):                         # type: ignore
     _type_ = "v"
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.value)
+        return "%s(%r)" % (self.__class__.__name__, self.value)  # type: ignore
 
 ULONG = ctypes.c_ulong
 LONG = ctypes.c_long
@@ -46,11 +46,13 @@ LPCVOID = LPVOID = ctypes.c_void_p
 WPARAM: type[ctypes.c_ulong] | type[ctypes.c_ulonglong]
 LPARAM: type[ctypes.c_long] | type[ctypes.c_longlong]
 if ctypes.sizeof(ctypes.c_long) == ctypes.sizeof(ctypes.c_void_p):
-    WPARAM = ctypes.c_ulong
-    LPARAM = ctypes.c_long
+    WPARAM = ctypes.c_ulong      # pyright: ignore[reportConstantRedefinition]
+    LPARAM = ctypes.c_long       # pyright: ignore[reportConstantRedefinition]
 elif ctypes.sizeof(ctypes.c_longlong) == ctypes.sizeof(ctypes.c_void_p):
-    WPARAM = ctypes.c_ulonglong
-    LPARAM = ctypes.c_longlong
+    WPARAM = ctypes.c_ulonglong  # pyright: ignore[reportConstantRedefinition]
+    LPARAM = ctypes.c_longlong   # pyright: ignore[reportConstantRedefinition]
+else:
+    raise ValueError('Invalid C_VOID_P size')
 
 ATOM = WORD
 LANGID = WORD
@@ -109,7 +111,7 @@ class _SMALL_RECT(ctypes.Structure):
                 ('Bottom', SHORT)]
 SMALL_RECT = _SMALL_RECT
 
-class _COORD(ctypes.Structure):
+class _COORD(ctypes.Structure):  # pyright: ignore[reportUnusedClass]
     _fields_ = [('X', SHORT),
                 ('Y', SHORT)]
 
@@ -123,7 +125,7 @@ class SIZE(ctypes.Structure):
                 ("cy", LONG)]
 tagSIZE = SIZEL = SIZE
 
-def RGB(red, green, blue):
+def RGB(red: int, green: int, blue: int) -> int:
     return red + (green << 8) + (blue << 16)
 
 class FILETIME(ctypes.Structure):
@@ -207,10 +209,10 @@ POINTER = ctypes.POINTER
 
 
 # Windows macros
-def LOWORD(dword):
+def LOWORD(dword: int) -> int:
     return dword & 0x0000ffff
 
-def HIWORD(dword):
+def HIWORD(dword: int) -> int:
     return dword >> 16
 
 
@@ -292,16 +294,16 @@ TH32CS_SNAPPROCESS = 0x02
 
 
 # PE structs
-def IMAGE_ORDINAL32(Ordinal):
-  return (Ordinal & 0xffff)
+def IMAGE_ORDINAL32(ordinal: int) -> int:
+  return (ordinal & 0xffff)
 
-def IMAGE_ORDINAL64(Ordinal):
-  return (Ordinal & 0xffff)
+def IMAGE_ORDINAL64(ordinal: int) -> int:
+  return (ordinal & 0xffff)
 
-def IMAGE_SNAP_BY_ORDINAL32(ordinal):
+def IMAGE_SNAP_BY_ORDINAL32(ordinal: int) -> int:
     return ordinal & IMAGE_ORDINAL_FLAG32 != 0
 
-def IMAGE_SNAP_BY_ORDINAL64(ordinal):
+def IMAGE_SNAP_BY_ORDINAL64(ordinal: int) -> int:
     return ordinal & IMAGE_ORDINAL_FLAG64 != 0
 
 class IMAGE_DOS_HEADER(ctypes.Structure):

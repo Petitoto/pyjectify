@@ -31,7 +31,7 @@ def getpid(process: str) -> list[int]:
     Returns:
         List of PIDs associated with the process name
     """
-    pids = []
+    pids: list[int] = []
 
     hProcessSnap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
     if hProcessSnap == -1:
@@ -440,7 +440,7 @@ class ProcessHandle:
         thread = self.start_thread(thread_code_addr)
         self.join_thread(thread)
 
-        retvals = []
+        retvals: list[int] = []
         for i in range(n):
             retval = self.read(ret_addr + i*basesize, basesize)
             retvals.append(int.from_bytes(retval, 'little'))

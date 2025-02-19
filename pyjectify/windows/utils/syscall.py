@@ -1,5 +1,5 @@
 import ctypes.util
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 from pyjectify.windows.core.defines import *
 from pyjectify.windows.core.pe import PE
@@ -32,88 +32,95 @@ _syscall_x64 += b'\xc3'                    # ret
 
 class Syscall:
     """This class represents a NTDLL-like object and provides methods parse and use direct syscalls
-    
+
     You can use Syscall.NtFunc(args) to call a NTDLL function. If the syscode was retrieved, this method will use a direct syscall. Else it will fallback to loaded ntdll.
-    
+
     This util does not support WOW64.
     """
-    
-    syscalltable: dict  #: Dict of syscall -> syscode, store the retrieved syscall codes
-    syscall: Callable   #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
-    
-    def __init__(self, syscalltable: Dict[str, str] = {}) -> None:
+
+    syscalltable: dict[str, int]   #: Dict of syscall -> syscode, store the retrieved syscall codes
+    syscall: Callable[..., int]    #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
+
+    def __init__(self, syscalltable: Dict[str, int] = {}) -> None:
         self.syscalltable = syscalltable
-        
+
         self._process = ProcessHandle(-1)
         if self._process.x86 and not self._process.wow64:
             syscall = _syscall_x86
         else:
             syscall = _syscall_x64
-        
+
         addr = self._process.allocate(len(syscall))
         self._process.write(addr, syscall)
         self._process.protect(addr, len(syscall), PAGE_EXECUTE_READ)
         self.syscall = ctypes.CFUNCTYPE(DWORD)(addr)
-    
-    
+
+
     def get_syscode(self, syscall: str, from_disk: bool = False) -> int:
         """Retrieve a syscall code from loaded ntdll or from the disk
-        
+
         Args:
             syscall: syscall name to retrieve
             from_disk: decide wether the syscode are retrieved from the loaded ntdll or from the ntdll.dll on the disk
-        
+
         Returns:
             The syscode coresponding to the syscall
         """
         data = b''
-        
+
         if from_disk:
-            ntdll_path = ctypes.util.find_library('ntdll.dll')
-            if not ntdll_path:
-                raise AssertionError('ntdll.dll not found')
+            ntdll_path: str | None = ctypes.util.find_library('ntdll.dll')
+            if ntdll_path is None:
+                raise InvalidNTDLLSyscall('ntdll.dll not found')
             ntdll_pe = PE(open(ntdll_path, 'rb').read())
             addr = ntdll_pe.exports[syscall]
             data = ntdll_pe.raw[addr:addr+8]
         else:
             addr = ctypes.cast(ntdll.__getattribute__(syscall), ctypes.c_void_p).value
+            if addr is None:
+                raise InvalidNTDLLSyscall(f'Syscall {syscall} not found in loaded NTDLL')
             data = self._process.read(addr, 8)
-        
+
         i = 0
         while i < len(_syscode_signatures) and not data.startswith(_syscode_signatures[i]):
             i += 1
-        
+
         if i < len(_syscode_signatures):
             offset = len(_syscode_signatures[i])
             syscode = int.from_bytes(data[offset:offset+4], 'little')
         else:
             raise AssertionError('Syscall code to %s not found in ntdll' % (syscall))
-        
+
         self.syscalltable[syscall] = syscode
         return syscode
-    
-    
+
+
     def get_common(self, from_disk: bool = False):
         """Retrieve common syscall codes from loaded ntdll or from the disk
-        
+
         Syscall codes retrieved are those used by PyJectify's core ProcessHandle: NtQueryVirtualMemory, NtAllocateVirtualMemory, NtFreeVirtualMemory, NtProtectVirtualMemory, NtReadVirtualMemory, NtWriteVirtualMemory, NtCreateThreadEx
-        
+
         Args:
             from_disk: decide wether the syscode are retrieved from the loaded ntdll or from the ntdll.dll on the disk
         """
         nt_common = ["NtQueryVirtualMemory", "NtAllocateVirtualMemory", "NtFreeVirtualMemory", "NtProtectVirtualMemory", "NtReadVirtualMemory", "NtWriteVirtualMemory", "NtCreateThreadEx"]
-        
+
         for syscall in nt_common:
             self.get_syscode(syscall, from_disk)
-    
-    
-    def __getattr__(self, syscall: str) -> Callable:
+
+
+    def __getattr__(self, syscall: str) -> Callable[..., int]:
         if syscall not in self.syscalltable:
             return ntdll.__getattribute__(syscall)
-        
+
         syscode = self.syscalltable[syscall]
-        
-        def _call(*args):
+
+        def _call(*args: Any):
             return self.syscall(syscode, *args)
-        
+
         return _call
+
+
+class InvalidNTDLLSyscall(Exception):
+    """Exception for NTDLL syscalls parsing errors"""
+    pass

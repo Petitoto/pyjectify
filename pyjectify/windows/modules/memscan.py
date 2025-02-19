@@ -43,7 +43,7 @@ class MemScan:
                         offset += mem_info.BaseAddress
                     yield mem_info
 
-        scanned_addr = []
+        scanned_addr: list[int] = []
         for mem_info in gen_meminfo():
             if mem_info.State == MEM_COMMIT and not mem_info.Protect == PAGE_NOACCESS and not mem_info.Protect & PAGE_GUARD:
                 raw = self._process.read(mem_info.BaseAddress, mem_info.RegionSize)

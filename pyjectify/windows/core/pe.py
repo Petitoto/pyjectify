@@ -16,9 +16,9 @@ class PE:
     nt_header: IMAGE_NT_HEADERS32 | IMAGE_NT_HEADERS64 #: NT headers
     x86: bool                                          #: Specify if the PE is a 32-bit PE
     sections_header: list[IMAGE_SECTION_HEADER]        #: PE sections headers
-    sections: list                                     #: PE sections, list of (VirtualAddress, VirtualSize, PageProtection) tuple
-    exports: dict                                      #: PE exports, dict of function_name -> function_address ; addresses are relative to the module base address
-    imports: dict                                      #: PE imports, dict of library_name -> [(function_name, function_address)...]
+    sections: list[tuple[int, int, int]]               #: PE sections, list of (VirtualAddress, VirtualSize, PageProtection) tuple
+    exports: dict[str|int, int]                        #: PE exports, dict of function_name | ordinal -> function_address ; addresses are relative to the module base address
+    imports: dict[str, list[tuple[str|int, int]]]      #: PE imports, dict of library_name -> [(function_name | ordinal, function_address)...]
 
     def __init__(self, raw: bytes, base_addr: int = 0, headers_only: bool = False) -> None:
         self.raw = raw
@@ -74,6 +74,8 @@ class PE:
                 protect = PAGE_READONLY
             elif protectR and protectW and not protectX:
                 protect = PAGE_READWRITE
+            else:
+                raise InvalidPEHeader('Invalid section protection')
 
             self.sections.append((section_header.VirtualAddress, section_header.Misc.VirtualSize, protect))
 
@@ -108,6 +110,7 @@ class PE:
         else:
             section_addr = self.dos_header.e_lfanew + ctypes.sizeof(IMAGE_NT_HEADERS64)
 
+        data = b''
         virtual_end = section_addr + len(self.sections_header) * ctypes.sizeof(IMAGE_SECTION_HEADER)
         for section_header in self.sections_header:
             data = self.raw[virtual_end:section_header.VirtualAddress]
@@ -205,11 +208,11 @@ class PE:
                 self.exports[name] = function_addr
 
 
-    def forwarded_export(self, name: str) -> str:
+    def forwarded_export(self, name: str | int) -> str:
         """Resolve a forwarded export
 
         Args:
-            name: the name of the forwarded export
+            name: the name (or the ordinal) of the forwarded export
 
         Returns:
             The name of the resolved forwarded export
