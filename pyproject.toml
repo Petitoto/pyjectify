@@ -1,12 +1,12 @@
 [project]
 name = "pyjectify"
-version = "0.7"
+version = "1.0"
 authors = [
   { name="Petitoto" },
 ]
 description = "A Python library for memory manipulation, code injection and function hooking"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
