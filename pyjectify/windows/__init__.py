@@ -13,7 +13,7 @@ from pyjectify.windows.utils.apisetschema import ApiSetSchema
 from pyjectify.windows.utils.syscall import Syscall
 
 
-__all__ = ['PyJectifyWin', 'byName', 'defines', 'PE', 'ApiSetSchema', 'Syscall', 'x86', 'wow64', 'windowsx86']
+__all__ = ['PyJectifyWin', 'open', 'defines', 'PE', 'ApiSetSchema', 'Syscall', 'x86', 'wow64', 'windowsx86']
 
 
 x86: bool         #: Specify if PyJectify process runs in 32-bit mode
@@ -46,7 +46,7 @@ class PyJectifyWin:
         self.pythonlib = _PythonLib(self.process)
 
 
-def byName(process: str) -> list[PyJectifyWin]:
+def open(process: str) -> list[PyJectifyWin]:
     """Return a list of PyjectifyWin objects based on a process name
 
     Args:
