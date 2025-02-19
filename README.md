@@ -1,9 +1,12 @@
-<img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png" href="#">
-
-<style>h1 { border-bottom: 0; } </style>
-# PyJectify
-A Python library for memory manipulation, code injection and function hooking.
-
+<div id="toc">
+  <img height="100" align="left" style="float: left; margin: 0 10px 0 0;" alt="PyJectify logo" src="https://raw.githubusercontent.com/Petitoto/pyjectify/main/pyjectify.png" href="#">
+  <ul>
+    <summary>
+      <h1>PyJectify</h1>
+    </summary>
+    A Python library for memory manipulation, code injection and function hooking.
+  </ul>
+</div>
 
 ## Quick start
 PyJectify is available on [PyPI](https://pypi.org/project/pyjectify/).
