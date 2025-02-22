@@ -62,7 +62,7 @@ class Syscall:
 
 
     def get_syscode(self, syscall: str, from_disk: bool = False) -> int:
-        """Retrieve a syscall code from loaded ntdll or from the disk
+        """Retrieve a syscall code from loaded ntdll or from the disk, and update syscalltable attribute accordingly
 
         Args:
             syscall: syscall name to retrieve
@@ -101,7 +101,7 @@ class Syscall:
 
 
     def get_common(self, from_disk: bool = False):
-        """Retrieve common syscall codes from loaded ntdll or from the disk
+        """Retrieve common syscall codes from loaded ntdll or from the disk, and update syscalltable attribute accordingly
 
         Syscall codes retrieved are those used by PyJectify's core ProcessHandle: NtQueryVirtualMemory, NtAllocateVirtualMemory, NtFreeVirtualMemory, NtProtectVirtualMemory, NtReadVirtualMemory, NtWriteVirtualMemory, NtCreateThreadEx
 

@@ -19,11 +19,13 @@ class MemScan:
         self.addrs = []
 
     def reset(self) -> None:
-        """Reset found memory addresses"""
+        """Reset found memory addresses (clear the 'addrs' attribute)"""
         self.addrs = []
 
     def scan(self, pattern: bytes) -> list[int]:
         """Search a pattern in the whole memory of the target process or among previously found memory addresses
+
+        Set the 'addrs' attribute to the matching addresses
 
         Args:
             pattern: regex pattern

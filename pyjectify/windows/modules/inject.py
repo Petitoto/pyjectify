@@ -66,7 +66,7 @@ class Inject:
             call_entry_point: specify whether to call the entry point with DLL_PROCESS_ATTACH flag
 
         Returns:
-            A PyJectify's PE object representing the library loaded in the target process
+            A PyJectify's PE object representing the library loaded in the target process (before calling its entry point)
         """
         start = 0
         if not copy_headers:
