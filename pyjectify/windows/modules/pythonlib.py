@@ -18,11 +18,17 @@ if func_name in globals():
 
 
 class PythonLib:
-    """This class provides methods to run Python inside a target process"""
+    """This class provides methods to run Python inside a target process."""
 
     python_mod: PE  #: Handle to the Python library loaded in the target process
 
     def __init__(self, process: ProcessHandle, python_mod: PE | None = None) -> None:
+        """Initialization: bind the module to a specific process
+
+        Args:
+            process: ProcessHandle targeted by the module
+            python_mod: handle to the Python library loaded in the target process (optional, can be set later)
+        """
         self._process = process
         self._tstate = 0
         if python_mod:

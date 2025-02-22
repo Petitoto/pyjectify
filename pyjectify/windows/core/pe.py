@@ -8,7 +8,7 @@ STRUCT = TypeVar('STRUCT', bound=ctypes.Structure)
 
 
 class PE:
-    """This class represents a PE and provides methods to parse it"""
+    """This class represents a PE and provides methods to parse it."""
 
     raw: bytes                                         #: Raw bytes of the PE, mapped to memory
     base_addr: int                                     #: Base address of the PE
@@ -21,6 +21,13 @@ class PE:
     imports: dict[str, list[tuple[str|int, int]]]      #: PE imports, dict of library_name -> [(function_name | ordinal, function_address)...]
 
     def __init__(self, raw: bytes, base_addr: int = 0, headers_only: bool = False) -> None:
+        """Initialization: parse PE headers and sections
+
+        Args:
+            raw: raw bytes of the PE, from a file or already mapped to memory
+            base_addr: force PE base address (if null, get it from the PE headers)
+            headers_only: specify whether the raw bytes contain the entire PE or just its headers
+        """
         self.raw = raw
         self.base_addr = base_addr
         self.sections_header = []

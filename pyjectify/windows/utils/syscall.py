@@ -31,17 +31,22 @@ _syscall_x64 += b'\xc3'                    # ret
 
 
 class Syscall:
-    """This class represents a NTDLL-like object and provides methods parse and use direct syscalls
+    """This class represents a ntdll-like object and provides methods parse and use direct syscalls.
 
-    You can use Syscall.NtFunc(args) to call a NTDLL function. If the syscode was retrieved, this method will use a direct syscall. Else it will fallback to loaded ntdll.
+    You can use Syscall.NtFunc(args) to call a ntdll function. If the syscode was retrieved, this method will use a direct syscall. Else it will fallback to loaded ntdll.
 
     This util does not support WOW64.
     """
 
-    syscalltable: dict[str, int]   #: Dict of syscall -> syscode, store the retrieved syscall codes
+    syscalltable: dict[str, int]   #: Dict of ntdll function name -> syscall code (store the retrieved syscall codes)
     syscall: Callable[..., int]    #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
 
     def __init__(self, syscalltable: Dict[str, int] = {}) -> None:
+        """Initialization: build a method allowing direct syscalls using a shellcode
+
+        Args:
+            syscalltable: initial syscall codes (can be filled later)
+        """
         self.syscalltable = syscalltable
 
         self._process = ProcessHandle(-1)

@@ -9,9 +9,14 @@ _jmp_x64 += b'\xff\xe0'   # jmp    rax
 
 
 class Hook:
-    """This class provides methods to hook functions of the target process"""
+    """This class provides methods to hook functions of the target process."""
 
     def __init__(self, process: ProcessHandle) -> None:
+        """Initialization: bind the module to a specific process
+
+        Args:
+            process: ProcessHandle targeted by the module
+        """
         self._process = process
 
 

@@ -5,11 +5,16 @@ from pyjectify.windows.core.process import ProcessHandle
 
 
 class MemScan:
-    """This class provides methods to find a pattern inside a remote process memory"""
+    """This class provides methods to find a pattern inside a remote process memory."""
 
     addrs: list[int]  #: Addresses to scan, matching with the previous search. If empty, scan all addresses.
 
     def __init__(self, process: ProcessHandle) -> None:
+        """Initialization: bind the module to a specific process
+
+        Args:
+            process: ProcessHandle targeted by the module
+        """
         self._process = process
         self.addrs = []
 

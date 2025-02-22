@@ -8,11 +8,12 @@ STRUCT = TypeVar('STRUCT', bound=ctypes.Structure)
 
 
 class ApiSetSchema:
-    """This class provide methods to parse and resolve Windows ApiSet"""
+    """This class provide methods to parse and resolve Windows ApiSet."""
 
     entries: dict[str, list[str]]  #: Dict of api name -> list of api names defined by Windows ApiSet
 
     def __init__(self) -> None:
+        """Initialization: retrieve apisetschema.dll and parse ApiSet section"""
         self._data = b""
         self.entries = {}
 

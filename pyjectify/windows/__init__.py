@@ -29,7 +29,7 @@ windowsx86 = x86 and not wow64
 
 
 class PyJectifyWin:
-    """This class represents the main Pyjectify object for Windows and gives access to all modules"""
+    """This class represents the main Pyjectify object for Windows and gives access to all modules."""
 
     process: _ProcessHandle  #: Target Process
     memscan: _MemScan        #: MemScan module initialized for the target process
@@ -38,6 +38,11 @@ class PyJectifyWin:
     pythonlib: _PythonLib    #: PythonLib module initialized for the target process
 
     def __init__(self, pid: int) -> None:
+        """Initialization: open a handle to the target process and initialize modules
+
+        Args:
+            pid: PID of the target process
+        """
         self.process = _ProcessHandle(pid)
 
         self.memscan = _MemScan(self.process)

@@ -55,15 +55,22 @@ def getpid(process: str) -> list[int]:
 
 
 class ProcessHandle:
-    """This class represents a Windows process and provides methods to manipulate it"""
+    """This class represents a Windows process and provides methods to interact with it."""
 
     pid: int                     #: PID of the target process
-    ntdll: ctypes.WinDLL | None  #: ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall instance or None. Determine the functions called for basic operations (WinAPI, NTDLL or direct syscalls).
+    ntdll: ctypes.WinDLL | None  #: ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall instance or None: determine how to call Windows internals (WinAPI, NTDLL or direct syscalls)
     handle: int                  #: Handle to the target process
     x86: bool                    #: Specify if the target process runs in 32-bit mode
     wow64: bool                  #: Specify if the target process is a wow64 process
 
     def __init__(self, pid: int, ntdll: ctypes.WinDLL | None = None, desired_access: int = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE) -> None:
+        """Initialization: open the target process and check its architecture
+
+        Args:
+            pid: PID of the target process (-1 for the current process)
+            ntdll: ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall instance or None, depending on how to call Windows internals (WinAPI, NTDLL or direct syscalls)
+            desired_access: desired access when opening the target process (can be one or more of the Windows process access rights)
+        """
         self.pid = pid
         self.ntdll = ntdll
 

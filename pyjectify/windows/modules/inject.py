@@ -18,9 +18,14 @@ _entry_call_x64 += b'\xff\xe0'                                                  
 
 
 class Inject:
-    """This class provides methods for code injection into a remote process"""
+    """This class provides methods for code injection into a remote process."""
 
     def __init__(self, process: ProcessHandle) -> None:
+        """Initialization: bind the module to a specific process
+
+        Args:
+            process: ProcessHandle targeted by the module
+        """
         self._process = process
 
     def load_library(self, libpath: str) -> PE:
