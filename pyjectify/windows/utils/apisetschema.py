@@ -10,12 +10,10 @@ STRUCT = TypeVar('STRUCT', bound=ctypes.Structure)
 class ApiSetSchema:
     """This class provide methods to parse and resolve Windows ApiSet."""
 
-    entries: dict[str, list[str]]  #: Dict of api name -> list of api names defined by Windows ApiSet
-
     def __init__(self) -> None:
         """Initialization: retrieve apisetschema.dll and parse ApiSet section"""
         self._data = b""
-        self.entries = {}
+        self._entries: dict[str, list[str]] = {}
 
         kernel32.Wow64DisableWow64FsRedirection(LPVOID())
         apisetschema_path = os.path.join(os.environ['WINDIR'], os.path.join('System32', 'apisetschema.dll'))
@@ -57,7 +55,7 @@ class ApiSetSchema:
                 entry_values.append(value)
 
             entry_name = entry_name[:entry_name.rfind('-')].replace('\x00', '')
-            self.entries[entry_name] = entry_values
+            self._entries[entry_name] = entry_values
 
 
     def _apiset4(self) -> None:
@@ -76,7 +74,7 @@ class ApiSetSchema:
                 entry_values.append(value)
 
             entry_name = entry_name[:entry_name.rfind('-')].replace('\x00', '')
-            self.entries[entry_name] = entry_values
+            self._entries[entry_name] = entry_values
 
 
     def _apiset6(self) -> None:
@@ -93,7 +91,7 @@ class ApiSetSchema:
                 entry_values.append(value)
 
             entry_name = entry_name[:entry_name.rfind('-')].replace('\x00', '')
-            self.entries[entry_name] = entry_values
+            self._entries[entry_name] = entry_values
 
 
     def _fill_struct(self, struct: type[STRUCT], addr: int) -> STRUCT:
@@ -115,6 +113,12 @@ class ApiSetSchema:
         return data[:data.find(b'\x00\x00')].decode().strip('\x00')
 
 
+    @property
+    def entries(self) -> dict[str, list[str]]:
+        """Dict of api name -> list of api names defined by Windows ApiSet"""
+        return self._entries
+
+
     def resolve(self, name: str) -> str:
         """Resolve a Windows ApiSet
 
@@ -125,8 +129,8 @@ class ApiSetSchema:
             The resolved name of the Windows ApiSet (last entry defined by Windows ApiSet)
         """
         cutname = name[:name.rfind('-')]
-        if cutname in self.entries:
-            return self.entries[cutname][-1]
+        if cutname in self._entries:
+            return self._entries[cutname][-1]
         else:
             return name
 

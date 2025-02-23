@@ -28,6 +28,7 @@ class Inject:
         """
         self._process = process
 
+
     def load_library(self, libpath: str) -> PE:
         """Run LoadLibrary in the target process to load a library from the disk
 

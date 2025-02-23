@@ -38,16 +38,13 @@ class Syscall:
     This util does not support WOW64.
     """
 
-    syscalltable: dict[str, int]   #: Dict of ntdll function name -> syscall code (store the retrieved syscall codes)
-    syscall: Callable[..., int]    #: syscall wrapper, first argument is the syscode and other arguments are the sycall arguments
-
     def __init__(self, syscalltable: Dict[str, int] = {}) -> None:
         """Initialization: build a method allowing direct syscalls using a shellcode
 
         Args:
             syscalltable: initial syscall codes (can be filled later)
         """
-        self.syscalltable = syscalltable
+        self._syscalltable = syscalltable
 
         self._process = ProcessHandle(-1)
         if self._process.x86 and not self._process.wow64:
@@ -58,7 +55,24 @@ class Syscall:
         addr = self._process.allocate(len(syscall))
         self._process.write(addr, syscall)
         self._process.protect(addr, len(syscall), PAGE_EXECUTE_READ)
-        self.syscall = ctypes.CFUNCTYPE(DWORD)(addr)
+        self._syscall = ctypes.CFUNCTYPE(DWORD)(addr)
+
+
+    @property
+    def syscalltable(self) -> dict[str, int]:
+        """Dict of ntdll function name -> syscall code (store the retrieved syscall codes)"""
+        return self._syscalltable
+
+
+    @syscalltable.setter
+    def syscalltable(self, syscalltable: dict[str, int]) -> None:
+        self._syscalltable = syscalltable
+
+
+    @property
+    def syscall(self) -> Callable[..., int]:
+        """Syscall wrapper, first argument is the syscode and other arguments are the sycall arguments"""
+        return self._syscall
 
 
     def get_syscode(self, syscall: str, from_disk: bool = False) -> int:
@@ -96,7 +110,7 @@ class Syscall:
         else:
             raise AssertionError('Syscall code to %s not found in ntdll' % (syscall))
 
-        self.syscalltable[syscall] = syscode
+        self._syscalltable[syscall] = syscode
         return syscode
 
 
@@ -115,13 +129,13 @@ class Syscall:
 
 
     def __getattr__(self, syscall: str) -> Callable[..., int]:
-        if syscall not in self.syscalltable:
+        if syscall not in self._syscalltable:
             return ntdll.__getattribute__(syscall)
 
-        syscode = self.syscalltable[syscall]
+        syscode = self._syscalltable[syscall]
 
         def _call(*args: Any):
-            return self.syscall(syscode, *args)
+            return self._syscall(syscode, *args)
 
         return _call
 

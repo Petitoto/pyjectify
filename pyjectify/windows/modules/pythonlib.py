@@ -20,8 +20,6 @@ if func_name in globals():
 class PythonLib:
     """This class provides methods to run Python inside a target process."""
 
-    python_mod: PE  #: Handle to the Python library loaded in the target process
-
     def __init__(self, process: ProcessHandle, python_mod: PE | None = None) -> None:
         """Initialization: bind the module to a specific process
 
@@ -32,7 +30,18 @@ class PythonLib:
         self._process = process
         self._tstate = 0
         if python_mod:
-            self.python_mod = python_mod
+            self._python_mod = python_mod
+
+
+    @property
+    def python_mod(self) -> PE:
+        """Handle to the Python library loaded in the target process"""
+        return self._python_mod
+
+
+    @python_mod.setter
+    def python_mod(self, python_mod: PE) -> None:
+        self._python_mod = python_mod
 
 
     def setprogramname(self, name: str) -> None:
@@ -48,7 +57,7 @@ class PythonLib:
         addr = self._process.allocate(len(programname))
         self._process.write(addr, programname)
 
-        py_setprogramname = self.python_mod.base_addr + self.python_mod.exports['Py_SetProgramName']
+        py_setprogramname = self._python_mod.base_addr + self._python_mod.exports['Py_SetProgramName']
 
         thread = self._process.start_thread(py_setprogramname, addr)
         self._process.join_thread(thread)
@@ -69,7 +78,7 @@ class PythonLib:
         addr = self._process.allocate(len(pythonpath))
         self._process.write(addr, pythonpath)
 
-        py_setpath = self.python_mod.base_addr + self.python_mod.exports['Py_SetPath']
+        py_setpath = self._python_mod.base_addr + self._python_mod.exports['Py_SetPath']
 
         thread = self._process.start_thread(py_setpath, addr)
         self._process.join_thread(thread)
@@ -92,7 +101,7 @@ class PythonLib:
         addr = self._process.allocate(len(pythonhome))
         self._process.write(addr, pythonhome)
 
-        py_setpythonhome = self.python_mod.base_addr + self.python_mod.exports['Py_SetPythonHome']
+        py_setpythonhome = self._python_mod.base_addr + self._python_mod.exports['Py_SetPythonHome']
 
         thread = self._process.start_thread(py_setpythonhome, addr)
         self._process.join_thread(thread)
@@ -108,7 +117,7 @@ class PythonLib:
         Returns:
             A boolean specifying if the Python interpreter is initialized
         """
-        py_isinitialized = self.python_mod.base_addr + self.python_mod.exports['Py_IsInitialized']
+        py_isinitialized = self._python_mod.base_addr + self._python_mod.exports['Py_IsInitialized']
 
         thread = self._process.start_thread(py_isinitialized)
         ret = self._process.join_thread(thread)
@@ -125,8 +134,8 @@ class PythonLib:
             initsigs: initsigs for Py_InitializeEx
         """
         if not self.isinitialized():
-            py_initialize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_InitializeEx']
-            py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
+            py_initialize_ex = self._python_mod.base_addr + self._python_mod.exports['Py_InitializeEx']
+            py_eval_save_thread = self._python_mod.base_addr + self._python_mod.exports['PyEval_SaveThread']
 
             ret = self._process.run_funcs([(py_initialize_ex, initsigs), (py_eval_save_thread, 0)])
             self._tstate = ret[1]
@@ -145,9 +154,9 @@ class PythonLib:
         if not py_code:
             return
 
-        py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
-        py_run_simple_string = self.python_mod.base_addr + self.python_mod.exports['PyRun_SimpleString']
-        py_eval_save_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_SaveThread']
+        py_eval_restore_thread = self._python_mod.base_addr + self._python_mod.exports['PyEval_RestoreThread']
+        py_run_simple_string = self._python_mod.base_addr + self._python_mod.exports['PyRun_SimpleString']
+        py_eval_save_thread = self._python_mod.base_addr + self._python_mod.exports['PyEval_SaveThread']
 
         pycode_addr = self._process.allocate(len(py_code))
         self._process.write(pycode_addr, py_code)
@@ -164,8 +173,8 @@ class PythonLib:
 
         This method calls PyEval_RestoreThread + Py_FinalizeEx
         """
-        py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
-        py_finalize_ex = self.python_mod.base_addr + self.python_mod.exports['Py_FinalizeEx']
+        py_eval_restore_thread = self._python_mod.base_addr + self._python_mod.exports['PyEval_RestoreThread']
+        py_finalize_ex = self._python_mod.base_addr + self._python_mod.exports['Py_FinalizeEx']
 
         self._process.run_funcs([(py_eval_restore_thread, self._tstate), (py_finalize_ex, 0)])
         self._tstate = 0

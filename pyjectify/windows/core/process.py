@@ -57,12 +57,6 @@ def getpid(process: str) -> list[int]:
 class ProcessHandle:
     """This class represents a Windows process and provides methods to interact with it."""
 
-    pid: int                     #: PID of the target process
-    ntdll: ctypes.WinDLL | None  #: ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall instance or None: determine how to call Windows internals (WinAPI, NTDLL or direct syscalls)
-    handle: int                  #: Handle to the target process
-    x86: bool                    #: Specify if the target process runs in 32-bit mode
-    wow64: bool                  #: Specify if the target process is a wow64 process
-
     def __init__(self, pid: int, ntdll: ctypes.WinDLL | None = None, desired_access: int = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE) -> None:
         """Initialization: open the target process and check its architecture
 
@@ -71,31 +65,69 @@ class ProcessHandle:
             ntdll: ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall instance or None, depending on how to call Windows internals (WinAPI, NTDLL or direct syscalls)
             desired_access: desired access when opening the target process (can be one or more of the Windows process access rights)
         """
-        self.pid = pid
-        self.ntdll = ntdll
+        self._pid = pid
+        self._ntdll = ntdll
 
-        if self.pid == -1:
-            self.handle = kernel32.GetCurrentProcess()
+        if self._pid == -1:
+            self._handle = kernel32.GetCurrentProcess()
         else:
-            self.handle = kernel32.OpenProcess(desired_access, False, self.pid)
-        if not self.handle:
+            self._handle = kernel32.OpenProcess(desired_access, False, self._pid)
+        if not self._handle:
             raise WinAPIError('OpenProcess - %s' % (kernel32.GetLastError()))
 
         wow64 = BOOL()
-        if not kernel32.IsWow64Process(self.handle, ctypes.byref(wow64)):
+        if not kernel32.IsWow64Process(self._handle, ctypes.byref(wow64)):
             raise WinAPIError('IsWow64Process - %s' % (kernel32.GetLastError()))
-        self.wow64 = wow64.value > 0
+        self._wow64 = wow64.value > 0
         injectorx86 = ctypes.sizeof(SIZE_T) == 4
         injectorwow64 = BOOL()
         if not kernel32.IsWow64Process(-1, ctypes.byref(injectorwow64)):
             raise WinAPIError('IsWow64Process - %s' % (kernel32.GetLastError()))
         windowsx86 = injectorx86 and not injectorwow64
-        self.x86 = self.wow64 or windowsx86
+        self._x86 = self._wow64 or windowsx86
+
+
+    @property
+    def pid(self) -> int:
+        """PID of the target process"""
+        return self._pid
+
+
+    @property
+    def ntdll(self) -> ctypes.WinDLL | None:
+        """Specify how to call Windows internals (WinAPI, NTDLL or direct syscalls)
+
+        Can be of instance ctypes.windll.ntdll or pyjectify.windows.utils.syscall.Syscall or None
+        """
+        return self._ntdll
+
+
+    @ntdll.setter
+    def ntdll(self, ntdll: ctypes.WinDLL | None) -> None:
+        self._ntdll = ntdll
+
+
+    @property
+    def handle(self) -> int:
+        """Handle to the target process"""
+        return self._handle
+
+
+    @property
+    def x86(self) -> bool:
+        """Specify if the target process runs in 32-bit mode"""
+        return self._x86
+
+
+    @property
+    def wow64(self) -> bool:
+        """Specify if the target process is a wow64 process"""
+        return self._wow64
 
 
     def close(self) -> None:
         """Close the handle to the target process"""
-        if not kernel32.CloseHandle(self.handle):
+        if not kernel32.CloseHandle(self._handle):
             raise WinAPIError('CloseHandle - %s' % (kernel32.GetLastError()))
 
 
@@ -108,9 +140,9 @@ class ProcessHandle:
         Returns:
             The MEMORY_BASIC_INFORMATION linked to the range of memory pages
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._virtual_query(addr)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._virtual_query_ex(addr)
         else:
             return self._nt_query_virtual_memory(addr)
@@ -125,14 +157,14 @@ class ProcessHandle:
 
     def _virtual_query_ex(self, addr: int) -> MEMORY_BASIC_INFORMATION:
         mem_info = MEMORY_BASIC_INFORMATION()
-        if not kernel32.VirtualQueryEx(self.handle, addr, mem_info, ctypes.sizeof(mem_info)):
+        if not kernel32.VirtualQueryEx(self._handle, addr, mem_info, ctypes.sizeof(mem_info)):
             raise WinAPIError('VirtualQueryEx - %s' % (kernel32.GetLastError()))
         return mem_info
 
 
     def _nt_query_virtual_memory(self, addr: int) -> MEMORY_BASIC_INFORMATION:
         mem_info = MEMORY_BASIC_INFORMATION()
-        status = ntdll.NtQueryVirtualMemory(self.handle, addr, MemoryBasicInformation, ctypes.byref(mem_info), ctypes.sizeof(mem_info), None)
+        status = ntdll.NtQueryVirtualMemory(self._handle, addr, MemoryBasicInformation, ctypes.byref(mem_info), ctypes.sizeof(mem_info), None)
         if status:
             raise WinAPIError('NtQueryVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
         return mem_info
@@ -149,9 +181,9 @@ class ProcessHandle:
         Returns:
             The address of the allocated memory region
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._virtual_alloc(size, protect, preferred_addr)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._virtual_alloc_ex(size, protect, preferred_addr)
         else:
             return self._nt_allocate_virtual_memory(size, protect, preferred_addr)
@@ -167,19 +199,19 @@ class ProcessHandle:
 
     def _virtual_alloc_ex(self, size: int, protect: int = PAGE_READWRITE, preferred_addr: int | None = None) -> int:
         flags = MEM_RESERVE | MEM_COMMIT
-        addr = kernel32.VirtualAllocEx(self.handle, preferred_addr, size, flags, protect)
+        addr = kernel32.VirtualAllocEx(self._handle, preferred_addr, size, flags, protect)
         if not addr:
             raise WinAPIError('VirtualAllocEx - %s' % (kernel32.GetLastError()))
         return addr
 
 
     def _nt_allocate_virtual_memory(self, size: int, protect: int = PAGE_READWRITE, preferred_addr: int | None = None) -> int:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
         flags = MEM_RESERVE | MEM_COMMIT
         addr = HANDLE(preferred_addr)
-        status = self.ntdll.NtAllocateVirtualMemory(self.handle, ctypes.byref(addr), None, ctypes.byref(SIZE_T(size)), flags, protect)
+        status = self._ntdll.NtAllocateVirtualMemory(self._handle, ctypes.byref(addr), None, ctypes.byref(SIZE_T(size)), flags, protect)
         if status or not addr.value:
             raise WinAPIError('NtAllocateVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
         return addr.value
@@ -193,9 +225,9 @@ class ProcessHandle:
             size: size of the memory region to free (must be 0 if flag is MEM_RELEASE)
             flags: the type of free operation
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._virtual_free(addr, size, flags)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._virtual_free_ex(addr, size, flags)
         else:
             return self._nt_free_virtual_memory(addr, size, flags)
@@ -207,15 +239,15 @@ class ProcessHandle:
 
 
     def _virtual_free_ex(self, addr: int, size: int = 0, flags: int = MEM_RELEASE) -> None:
-        if not kernel32.VirtualFreeEx(self.handle, addr, size, flags):
+        if not kernel32.VirtualFreeEx(self._handle, addr, size, flags):
             raise WinAPIError('VirtualFreeEx - %s' % (kernel32.GetLastError()))
 
 
     def _nt_free_virtual_memory(self, addr: int, size: int = 0, flags: int = MEM_RELEASE) -> None:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
-        status = self.ntdll.NtFreeVirtualMemory(self.handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T(size)), flags)
+        status = self._ntdll.NtFreeVirtualMemory(self._handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T(size)), flags)
         if status:
             raise WinAPIError('NtFreeVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
 
@@ -231,9 +263,9 @@ class ProcessHandle:
         Returns:
             The old protection of the memory region
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._virtual_protect(addr, size, protect)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._virtual_protect_ex(addr, size, protect)
         else:
             return self._nt_protect_virtual_memory(addr, size, protect)
@@ -248,17 +280,17 @@ class ProcessHandle:
 
     def _virtual_protect_ex(self, addr: int, size: int, protect: int) -> int:
         old_protect = DWORD()
-        if not kernel32.VirtualProtectEx(self.handle, addr, size, protect, ctypes.byref(old_protect)):
+        if not kernel32.VirtualProtectEx(self._handle, addr, size, protect, ctypes.byref(old_protect)):
             raise WinAPIError('VirtualProtectEx - %s' % (kernel32.GetLastError()))
         return old_protect.value
 
 
     def _nt_protect_virtual_memory(self, addr: int, size: int, protect: int) -> int:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
         old_protect = DWORD()
-        status = self.ntdll.NtProtectVirtualMemory(self.handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T(size)), protect, ctypes.byref(old_protect))
+        status = self._ntdll.NtProtectVirtualMemory(self._handle, ctypes.byref(HANDLE(addr)), ctypes.byref(SIZE_T(size)), protect, ctypes.byref(old_protect))
         if status:
             raise WinAPIError('NtProtectVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
         return old_protect.value
@@ -274,9 +306,9 @@ class ProcessHandle:
         Returns:
             Bytes of the memory area read
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._read_memory(addr, size)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._read_process_memory(addr, size)
         else:
             return self._nt_read_virtual_memory(addr, size)
@@ -289,17 +321,17 @@ class ProcessHandle:
 
     def _read_process_memory(self, addr: int, size: int) -> bytes:
         data = (CHAR * size)()
-        if not kernel32.ReadProcessMemory(self.handle, addr, ctypes.byref(data), ctypes.sizeof(data), None):
+        if not kernel32.ReadProcessMemory(self._handle, addr, ctypes.byref(data), ctypes.sizeof(data), None):
             raise WinAPIError('ReadProcessMemory - %s' % (kernel32.GetLastError()))
         return data.raw
 
 
     def _nt_read_virtual_memory(self, addr: int, size: int) -> bytes:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
         data = (CHAR * size)()
-        status = self.ntdll.NtReadVirtualMemory(self.handle, addr, ctypes.byref(data), ctypes.sizeof(data), None)
+        status = self._ntdll.NtReadVirtualMemory(self._handle, addr, ctypes.byref(data), ctypes.sizeof(data), None)
         if status:
             raise WinAPIError('NtReadVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
         return data.raw
@@ -312,9 +344,9 @@ class ProcessHandle:
             addr: address of the memory area
             data: bytes to write at the specified address
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._rtl_move_memory(addr, data)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._write_process_memory(addr, data)
         else:
             return self._nt_write_virtual_memory(addr, data)
@@ -334,19 +366,19 @@ class ProcessHandle:
             data = data.encode('utf-8')
         wr_data = (CHAR * len(data))()
         wr_data.value = data
-        if not kernel32.WriteProcessMemory(self.handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None):
+        if not kernel32.WriteProcessMemory(self._handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None):
             raise WinAPIError('WriteProcessMemory - %s' % (kernel32.GetLastError()))
 
 
     def _nt_write_virtual_memory(self, addr: int, data: str | bytes) -> None:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
         if isinstance(data, str):
             data = data.encode('utf-8')
         wr_data = (CHAR * len(data))()
         wr_data.value = data
-        status = self.ntdll.NtWriteVirtualMemory(self.handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None)
+        status = self._ntdll.NtWriteVirtualMemory(self._handle, addr, ctypes.byref(wr_data), ctypes.sizeof(wr_data), None)
         if status:
             raise WinAPIError('NtWriteVirtualMemory - %s' % ('0x{0:08x}'.format(status)))
 
@@ -361,9 +393,9 @@ class ProcessHandle:
         Returns:
             A handle to the thread started
         """
-        if self.pid == 1:
+        if self._pid == 1:
             return self._create_thread(addr, arg)
-        elif not self.ntdll:
+        elif not self._ntdll:
             return self._create_remote_thread(addr, arg)
         else:
             return self._nt_create_thread_ex(addr, arg)
@@ -377,19 +409,19 @@ class ProcessHandle:
 
 
     def _create_remote_thread(self, addr: int, arg: int | None = None) -> int:
-        handle = kernel32.CreateRemoteThread(self.handle, None, 0, addr, arg, 0, None)
+        handle = kernel32.CreateRemoteThread(self._handle, None, 0, addr, arg, 0, None)
         if not handle:
             raise WinAPIError('CreateRemoteThread - %s' % (kernel32.GetLastError()))
         return handle
 
 
     def _nt_create_thread_ex(self, addr: int, arg: int | None = None) -> int:
-        if not self.ntdll:
+        if not self._ntdll:
             raise AssertionError('NTDLL is undefined')
 
         flags = SYNCHRONIZE | THREAD_QUERY_INFORMATION
         handle = HANDLE()
-        status = self.ntdll.NtCreateThreadEx(ctypes.byref(handle), flags, None, self.handle, addr, arg, False, 0, 0, 0, None)
+        status = self._ntdll.NtCreateThreadEx(ctypes.byref(handle), flags, None, self._handle, addr, arg, False, 0, 0, 0, None)
         if not handle.value:
             raise WinAPIError('NtCreateThreadEx - %s' % ('0x{0:08x}'.format(status)))
         return handle.value
@@ -423,7 +455,7 @@ class ProcessHandle:
             A list of the return values for each called function
         """
         n = len(funcs)
-        if self.x86:
+        if self._x86:
             run_func = _run_func_x86
             basesize = 4
         else:
@@ -494,19 +526,19 @@ class ProcessHandle:
 
         modules = (HANDLE * 1)()
         size = DWORD()
-        if not psapi.EnumProcessModulesEx(self.handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
+        if not psapi.EnumProcessModulesEx(self._handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
             raise WinAPIError('EnumProcessModulesEx - %s' % (kernel32.GetLastError()))
         modules = (HANDLE * size.value)()
-        if not psapi.EnumProcessModulesEx(self.handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
+        if not psapi.EnumProcessModulesEx(self._handle, modules, ctypes.sizeof(modules), ctypes.byref(size), LIST_MODULES_ALL):
             raise WinAPIError('EnumProcessModulesEx - %s' % (kernel32.GetLastError()))
 
         for module in modules:
             name = LPCSTR(b' '*1024)
             if fullpath:
-                if not psapi.GetModuleFileNameExA(self.handle, module, name, ULONG(1024)):
+                if not psapi.GetModuleFileNameExA(self._handle, module, name, ULONG(1024)):
                     raise WinAPIError('GetModuleFileNameExA - %s' % (kernel32.GetLastError()))
             else:
-                if not psapi.GetModuleBaseNameA(self.handle, module, name, ULONG(1024)):
+                if not psapi.GetModuleBaseNameA(self._handle, module, name, ULONG(1024)):
                     raise WinAPIError('GetModuleBaseNameA - %s' % (kernel32.GetLastError()))
 
             if name.value and module:

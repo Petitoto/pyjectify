@@ -1,6 +1,6 @@
-import platform as platform
+import platform as _platform
 
-system = platform.system()  #: Current operating system
+system = _platform.system()  #: Current operating system
 
 if system == 'Windows':
     from pyjectify.windows import *

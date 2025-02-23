@@ -31,24 +31,49 @@ windowsx86 = x86 and not wow64
 class PyJectifyWin:
     """This class represents the main Pyjectify object for Windows and gives access to all modules."""
 
-    process: _ProcessHandle  #: Target Process
-    memscan: _MemScan        #: MemScan module initialized for the target process
-    hook: _Hook              #: Hook module initialized for the target process
-    inject: _Inject          #: Inject module initialized for the target process
-    pythonlib: _PythonLib    #: PythonLib module initialized for the target process
-
     def __init__(self, pid: int) -> None:
         """Initialization: open a handle to the target process and initialize modules
 
         Args:
             pid: PID of the target process
         """
-        self.process = _ProcessHandle(pid)
+        self._process = _ProcessHandle(pid)
 
-        self.memscan = _MemScan(self.process)
-        self.inject = _Inject(self.process)
-        self.hook = _Hook(self.process)
-        self.pythonlib = _PythonLib(self.process)
+        self._memscan = _MemScan(self._process)
+        self._inject = _Inject(self._process)
+        self._hook = _Hook(self._process)
+        self._pythonlib = _PythonLib(self._process)
+
+
+    @property
+    def process(self) -> _ProcessHandle:
+        """Target process"""
+        return self._process
+
+
+    @property
+    def memscan(self) -> _MemScan:
+        """MemScan module initialized for the target process"""
+        return self._memscan
+
+
+    @property
+    def inject(self) -> _Inject:
+        """Inject module initialized for the target process"""
+        return self._inject
+
+
+    @property
+    def hook(self) -> _Hook:
+        """Hook module initialized for the target process"""
+        return self._hook
+
+
+    @property
+    def pythonlib(self) -> _PythonLib:
+        """PythonLib module initialized for the target process"""
+        return self._pythonlib
+
 
 
 def open(process: str) -> list[PyJectifyWin]:
