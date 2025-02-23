@@ -79,6 +79,7 @@ class PythonLib:
 
     def setpythonhome(self, home: str) -> None:
         """Set the default "home" directory
+
         This method calls Py_SetPythonHome
 
         Args:
@@ -101,6 +102,7 @@ class PythonLib:
 
     def isinitialized(self) -> bool:
         """Check if the Python interpreter is initialized in the target process
+
         This method calls Py_IsInitialized
 
         Returns:
@@ -116,6 +118,7 @@ class PythonLib:
 
     def initialize(self, initsigs: int = 0) -> None:
         """Initialize the Python interpreter in the target process and release the GIL
+
         This method calls Py_IsInitialized + Py_InitializeEx + PyEval_SaveThread
 
         Args:
@@ -130,7 +133,10 @@ class PythonLib:
 
 
     def exec(self, py_code: str) -> None:
-        """Execute python code in the target process (acquire and then release the GIL). Python interpreter MUST be initialized.
+        """Run Python code in the target process (acquire and then release the GIL)
+
+        The Python interpreter must have been initialized by PyJectify before calling this method
+
         This method calls PyEval_RestoreThread + PyRun_SimpleString + PyEval_SaveThread
 
         Args:
@@ -153,6 +159,9 @@ class PythonLib:
 
     def finalize(self) -> None:
         """Undo all initializations of the Python interpreter in the target process
+
+        The Python interpreter must have been initialized by PyJectify before calling this method
+
         This method calls PyEval_RestoreThread + Py_FinalizeEx
         """
         py_eval_restore_thread = self.python_mod.base_addr + self.python_mod.exports['PyEval_RestoreThread']
@@ -163,9 +172,11 @@ class PythonLib:
 
 
     def prepare_hook(self, func: str, ofunc_addr: int = 0) -> int:
-        """Utility for using a python function as a hook.
+        """Utility for using a Python function as a hook
 
-        This method returns the address of the function and optionally creates the global function o_{func} which points to the original function.
+        This method returns the address of the function and optionally creates the global function o_{func} which points to the original function
+
+        The Python interpreter must have been initialized by PyJectify before calling this method
 
         Args:
             func: the name of the Python function to get the address
