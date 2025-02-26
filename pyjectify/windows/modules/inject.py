@@ -87,7 +87,7 @@ class Inject:
         for import_dll in module.imports.keys():
             import_module = self.load_library(apisetschema.resolve(import_dll))
 
-            for proc_name, thunk_addr in module.imports[import_dll]:
+            for proc_name, _ in module.imports[import_dll]:
                 forwarded = import_module.forwarded_export(proc_name)
 
                 if forwarded:
@@ -104,7 +104,7 @@ class Inject:
                 else:
                     proc_addr = import_module.base_addr + import_module.exports[proc_name]
 
-                module.patch_import(thunk_addr, proc_addr)
+                module.patch_import(import_dll, proc_name, proc_addr)
 
         self._process.write(module.base_addr+start, module.raw[start:])
         self._process.protect(module.base_addr+start, len(module.raw[start:]), PAGE_READONLY)

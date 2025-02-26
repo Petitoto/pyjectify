@@ -24,6 +24,7 @@ class PE:
         self._sections: list[tuple[int, int, int]] = []
         self._exports: dict[str|int, int] = {}
         self._imports: dict[str, list[tuple[str|int, int]]] = {}
+        self._imports_thunk: dict[str, list[tuple[str|int, int]]] = {}
 
         self._dos_header = self._fill_struct(IMAGE_DOS_HEADER, 0)
         if bytes(WORD(self._dos_header.e_magic)) != b'MZ':
@@ -150,16 +151,20 @@ class PE:
         while import_dir.Characteristics:
             dll_name = self._read_str(import_dir.Name)
             self._imports[dll_name] = []
+            self._imports_thunk[dll_name] = []
 
             i = 0
             while True:
+                thunk: IMAGE_THUNK_DATA32 | IMAGE_THUNK_DATA64
                 othunk: IMAGE_THUNK_DATA32 | IMAGE_THUNK_DATA64
                 if self._x86:
                     thunk_addr = import_dir.FirstThunk + i*ctypes.sizeof(IMAGE_THUNK_DATA32)
+                    thunk = self._fill_struct(IMAGE_THUNK_DATA32, thunk_addr)
                     othunk_addr = import_dir._u.OriginalFirstThunk + i*ctypes.sizeof(IMAGE_THUNK_DATA32)
                     othunk = self._fill_struct(IMAGE_THUNK_DATA32, othunk_addr)
                 else:
                     thunk_addr = import_dir.FirstThunk + i*ctypes.sizeof(IMAGE_THUNK_DATA64)
+                    thunk = self._fill_struct(IMAGE_THUNK_DATA64, thunk_addr)
                     othunk_addr = import_dir.OriginalFirstThunk + i*ctypes.sizeof(IMAGE_THUNK_DATA64)
                     othunk = self._fill_struct(IMAGE_THUNK_DATA64, othunk_addr)
 
@@ -167,16 +172,19 @@ class PE:
                     break
 
                 if self._x86 and IMAGE_SNAP_BY_ORDINAL32(othunk.u1.Ordinal):
-                    self._imports[dll_name].append((IMAGE_ORDINAL32(othunk.u1.Ordinal), thunk_addr))
+                    self._imports_thunk[dll_name].append((IMAGE_ORDINAL32(othunk.u1.Ordinal), thunk_addr))
+                    self._imports[dll_name].append((IMAGE_ORDINAL32(othunk.u1.Ordinal), thunk.u1.Function))
                     i += 1
                     continue
                 elif not self._x86 and IMAGE_SNAP_BY_ORDINAL64(othunk.u1.Ordinal):
-                    self._imports[dll_name].append((IMAGE_ORDINAL64(othunk.u1.Ordinal), thunk_addr))
+                    self._imports_thunk[dll_name].append((IMAGE_ORDINAL64(othunk.u1.Ordinal), thunk_addr))
+                    self._imports[dll_name].append((IMAGE_ORDINAL64(othunk.u1.Ordinal), thunk.u1.Function))
                     i += 1
                     continue
 
                 import_by_name = self._fill_struct(IMAGE_IMPORT_BY_NAME, othunk.u1.AddressOfData)
-                self._imports[dll_name].append((import_by_name.Name.decode(), thunk_addr))
+                self._imports_thunk[dll_name].append((import_by_name.Name.decode(), thunk_addr))
+                self._imports[dll_name].append((import_by_name.Name.decode(), thunk.u1.Function))
 
                 i += 1
 
@@ -353,24 +361,27 @@ class PE:
             self._base_addr = base_addr
 
 
-    def patch_import(self, thunk_addr: int, address: int) -> None:
+    def patch_import(self, dll_name: str, import_name: str|int, address: int) -> None:
         """Patch PE imports
 
         Args:
-            thunk_addr: address of the thunk data of the import
+            dll_name: name of the imported dll
+            import_name: name or ordinal of the imported function
             address: new function address for the import
         """
         raw = BytesIO(self._raw)
 
-        thunk: IMAGE_THUNK_DATA32 | IMAGE_THUNK_DATA64
-        if self._x86:
-            thunk = self._fill_struct(IMAGE_THUNK_DATA32, thunk_addr)
-        else:
-            thunk = self._fill_struct(IMAGE_THUNK_DATA64, thunk_addr)
-
-        thunk.u1.Function = address
-        raw.seek(thunk_addr)
-        raw.write(thunk)
+        for func_name, thunk_addr in self._imports_thunk[dll_name]:
+            if func_name  == import_name:
+                thunk: IMAGE_THUNK_DATA32 | IMAGE_THUNK_DATA64
+                if self._x86:
+                    thunk = self._fill_struct(IMAGE_THUNK_DATA32, thunk_addr)
+                else:
+                    thunk = self._fill_struct(IMAGE_THUNK_DATA64, thunk_addr)
+                thunk.u1.Function = address
+                raw.seek(thunk_addr)
+                raw.write(thunk)
+                break
 
         raw.seek(0)
         self._raw = raw.read()
