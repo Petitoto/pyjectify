@@ -134,6 +134,11 @@ class Syscall:
 
         syscode = self._syscalltable[syscall]
 
+        try:
+            self._syscall.argtypes = (DWORD,) + ntdll.__getattribute__(syscall).argtypes
+        except:
+            pass
+
         def _call(*args: Any):
             return self._syscall(syscode, *args)
 
