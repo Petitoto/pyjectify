@@ -44,7 +44,7 @@ class PythonLib:
         self._python_mod = python_mod
 
 
-    def setprogramname(self, name: str) -> None:
+    def set_program_name(self, name: str) -> None:
         """Set the value of the argv[0] argument to the main() function
 
         Args:
@@ -65,7 +65,7 @@ class PythonLib:
         self._process.free(addr)
 
 
-    def setpath(self, path: str) -> None:
+    def set_path(self, path: str) -> None:
         """Set the default module search path
 
         Args:
@@ -86,7 +86,7 @@ class PythonLib:
         self._process.free(addr)
 
 
-    def setpythonhome(self, home: str) -> None:
+    def set_python_home(self, home: str) -> None:
         """Set the default "home" directory
 
         This method calls Py_SetPythonHome
@@ -109,7 +109,7 @@ class PythonLib:
         self._process.free(addr)
 
 
-    def isinitialized(self) -> bool:
+    def is_initialized(self) -> bool:
         """Check if the Python interpreter is initialized in the target process
 
         This method calls Py_IsInitialized
@@ -133,7 +133,7 @@ class PythonLib:
         Args:
             initsigs: initsigs for Py_InitializeEx
         """
-        if not self.isinitialized():
+        if not self.is_initialized():
             py_initialize_ex = self._python_mod.base_addr + self._python_mod.exports['Py_InitializeEx']
             py_eval_save_thread = self._python_mod.base_addr + self._python_mod.exports['PyEval_SaveThread']
 
