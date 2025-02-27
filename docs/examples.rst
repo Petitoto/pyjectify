@@ -63,8 +63,8 @@ Setup an inline hook written in Python
     pycode = """
     import ctypes
     def GetClipboardData(uFormat:ctypes.c_uint) -> ctypes.c_void_p:
-    ctypes.windll.user32.MessageBoxW(0, "I hooked you :D", "MyNewGetClipboardData", 0)
-    return o_GetClipboardData(uFormat)
+      ctypes.windll.user32.MessageBoxW(0, "I hooked you :D", "MyNewGetClipboardData", 0)
+      return o_GetClipboardData(uFormat)
     """
     notepad.pythonlib.exec(pycode)
 
