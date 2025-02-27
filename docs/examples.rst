@@ -100,5 +100,8 @@ Advanced DLL injection
     # Use direct syscalls to operate on proc2 (memory read / write / protect, thread creation...)
     proc2.process.ntdll = syscall
 
-    # Inject the module directly from memory into proc2, at a random location, without PE headers, and do not call DllMain
-    proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False, call_entry_point=False)
+    # Inject the module directly from memory into proc2, at a random location, without PE headers, and do not call DLL entry point
+    injected_mod = proc2.inject.memory_loader(module, prefer_base_addr=False, copy_headers=False, call_entry_point=False)
+
+    # Run a function from the injected module
+    proc2.process.start_thread(injected_mod.base_addr + injected_mod.exports['SomeExportedFunction'])
